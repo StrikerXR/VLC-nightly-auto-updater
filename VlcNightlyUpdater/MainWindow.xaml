@@ -148,6 +148,13 @@
                             <ToggleSwitch x:Name="SelfToggle" HorizontalAlignment="Right" MinWidth="0"
                                           OnContent="" OffContent="" Toggled="Option_Toggled" />
                         </Grid>
+                        <Grid>
+                            <TextBlock Text="Check for VLC updates in the background" VerticalAlignment="Center" />
+                            <ToggleSwitch x:Name="BackgroundToggle" HorizontalAlignment="Right" MinWidth="0"
+                                          OnContent="" OffContent="" Toggled="BackgroundToggle_Toggled" />
+                        </Grid>
+                        <TextBlock x:Name="BackgroundNote" TextWrapping="Wrap" Opacity="0.6"
+                                   Style="{StaticResource CaptionTextBlockStyle}" />
 
                         <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
 

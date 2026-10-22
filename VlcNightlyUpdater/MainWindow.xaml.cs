@@ -44,7 +44,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         SetupWindow();
 
-        VersionText.Text = $"v{Net.CurrentVersion}";
+        VersionText.Text = $"v{Net.CurrentVersion}" + (IsDecember ? " \U0001F384" : "");
 
         _loadingUi = true;
         AutoToggle.IsOn = _state.AutoUpdate;
@@ -52,8 +52,10 @@ public sealed partial class MainWindow : Window
         CloseToggle.IsOn = _state.CloseAfterUpdate;
         ReopenToggle.IsOn = _state.ReopenIfWasRunning;
         SelfToggle.IsOn = _state.AutoUpdateSelf;
+        BackgroundToggle.IsOn = _state.BackgroundCheck;
         BuildArchPicker();
         _loadingUi = false;
+        SyncBackgroundCheck();
 
         SelfUpdater.CleanupStale();
         RefreshCacheText();
@@ -67,6 +69,64 @@ public sealed partial class MainWindow : Window
             _started = true;
             await RunGuardedAsync(CheckFlowAsync);
         };
+    }
+
+    private static bool IsDecember => DateTime.Now.Month == 12;
+
+    // ---------- optional background check ----------
+
+    /// <summary>
+    /// Makes Windows match the saved switch. OFF: make sure no scheduled task or registry key is left behind.
+    /// ON: refresh them (the install folder may have changed). Runs off the UI thread.
+    /// </summary>
+    private void SyncBackgroundCheck()
+    {
+        if (!SelfUpdater.IsInstalledCopy())
+        {
+            // A build-folder copy can't own a scheduled task: it would point at a path that goes away.
+            BackgroundToggle.IsEnabled = false;
+            BackgroundNote.Text = "Only available in the installed copy of the updater.";
+            return;
+        }
+
+        BackgroundNote.Text = _state.BackgroundCheck
+            ? "On: a scheduled task checks at sign-in and every 6 hours and shows a notification. It never installs by itself."
+            : "Off: nothing runs in the background. Turn on to get a notification when a new nightly is out.";
+
+        var on = _state.BackgroundCheck;
+        _ = Task.Run(() =>
+        {
+            try { if (on) BackgroundCheck.Enable(); else BackgroundCheck.Disable(); }
+            catch { /* best-effort refresh; the toggle itself reports errors */ }
+        });
+    }
+
+    private async void BackgroundToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loadingUi) return;
+        var on = BackgroundToggle.IsOn;
+        BackgroundToggle.IsEnabled = false;
+        try
+        {
+            await Task.Run(() => { if (on) BackgroundCheck.Enable(); else BackgroundCheck.Disable(); });
+            _state.BackgroundCheck = on;
+            if (!on) _state.LastNotifiedBuild = null;
+            StateStore.Save(_state);
+            BackgroundNote.Text = on
+                ? "On: a scheduled task checks at sign-in and every 6 hours and shows a notification. It never installs by itself."
+                : "Off: nothing runs in the background. Turn on to get a notification when a new nightly is out.";
+        }
+        catch (Exception ex)
+        {
+            _loadingUi = true;
+            BackgroundToggle.IsOn = !on;
+            _loadingUi = false;
+            await ShowMessageAsync(on ? "Couldn't turn on background checks" : "Couldn't turn off background checks", ex.Message);
+        }
+        finally
+        {
+            BackgroundToggle.IsEnabled = true;
+        }
     }
 
     // ---------- window chrome ----------
@@ -87,7 +147,11 @@ public sealed partial class MainWindow : Window
             p.IsMaximizable = false;
         }
 
-        try { AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico")); } catch { }
+        // December: the window and taskbar icon wears a Santa hat. Any other month: the normal icon.
+        var assets = Path.Combine(AppContext.BaseDirectory, "Assets");
+        var icon = Path.Combine(assets, IsDecember ? "app-christmas.ico" : "app.ico");
+        if (!File.Exists(icon)) icon = Path.Combine(assets, "app.ico");
+        try { AppWindow.SetIcon(icon); } catch { }
 
         // Size in DIPs -> pixels, then center on the current display.
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);

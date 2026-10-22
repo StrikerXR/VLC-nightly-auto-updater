@@ -33,6 +33,15 @@ public sealed class AppState
 
     /// <summary>Update this updater itself from GitHub Releases without asking.</summary>
     public bool AutoUpdateSelf { get; set; } = true;
+
+    /// <summary>
+    /// Opt-in, OFF by default. true = a per-user scheduled task checks for VLC updates in the background and shows a
+    /// notification. false = nothing runs in the background and nothing is registered with Windows.
+    /// </summary>
+    public bool BackgroundCheck { get; set; }
+
+    /// <summary>Newest build the background check already notified about (so it only tells you once).</summary>
+    public string? LastNotifiedBuild { get; set; }
 }
 
 /// <summary>Plain JSON in %LOCALAPPDATA% (unpackaged apps can't use ApplicationData.LocalSettings).</summary>

@@ -1,8 +1,8 @@
-; Version and CPU type are passed in by the build (/DMyAppVersion=2.0.57 /DMyArch=arm64).
-; Single source for the version: the VERSION file + run number. MyArch is x64 or arm64.
+; Version and CPU type are passed in by the build (/DMyAppVersion=2.1.0 /DMyArch=arm64).
+; Single source for the version: the VERSION file (MAJOR.MINOR.PATCH). MyArch is x64 or arm64.
 ; Requires Windows 11 25H2 (build 26200) or newer. 64-bit and ARM64 only.
 #ifndef MyAppVersion
-  #define MyAppVersion "2.0.0"
+  #define MyAppVersion "2.1.0"
 #endif
 #ifndef MyArch
   #define MyArch "x64"
@@ -70,7 +70,8 @@ WizardImageBackColor=$181818
 WizardSmallImageBackColor=$242020
 WizardImageAlphaFormat=none
 ShowLanguageDialog=no
-SetupLogging=yes
+; No setup log: it would leave a "Setup Log ....txt" file in %TEMP% that the uninstaller can't know about.
+SetupLogging=no
 DisableWelcomePage=no
 
 [Languages]
@@ -82,14 +83,21 @@ ExitSetupTitle=Cancel setup
 
 [InstallDelete]
 ; Clean update: wipe the old program files first. Settings live in %LOCALAPPDATA%\VlcNightlyUpdater
-; and VLC's config in %APPDATA%\vlc, so neither is touched.
+; and VLC's config in %APPDATA%\vlc, so neither is touched by an update.
 Type: filesandordirs; Name: "{app}\*"
+
+[UninstallDelete]
+; Uninstall removes everything: anything the app created next to itself, plus any Windows crash dumps it caused.
+; (Settings, cache, temp files, the scheduled task and registry keys are removed in [Code] below.)
+Type: filesandordirs; Name: "{app}"
+Type: files; Name: "{localappdata}\CrashDumps\VlcNightlyUpdater.exe.*.dmp"
 
 [Files]
 Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-; Start Menu only. No desktop icon, no startup entry, no services, no scheduled tasks.
+; Start Menu only. No desktop icon, no startup entry, no services. (The optional background check, off by default,
+; creates one scheduled task from inside the app, and the uninstaller removes it.)
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExe}"
 
 [Run]
@@ -171,7 +179,7 @@ begin
          WizardForm.WelcomeLabel1.Caption := 'Welcome to ' + '{#MyAppName}';
          WizardForm.WelcomeLabel2.Caption :=
            'Keeps your VLC nightly fresh with a single click.' + #13#10 + #13#10 +
-           '    Only runs when you open it. Nothing in the background.' + #13#10 + #13#10 +
+           '    Only runs when you open it. Background update checks are off unless you turn them on.' + #13#10 + #13#10 +
            '    Installs just for you. No admin rights needed.' + #13#10 + #13#10 +
            '    Never touches your VLC settings.' + #13#10 + #13#10 +
            '    Built for {#MyArchLabel} Windows 11.' + #13#10 + #13#10 + #13#10 +
@@ -246,20 +254,39 @@ begin
   end;
 end;
 
-procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+// ---------- uninstall: remove every trace ----------
+// Names below must match Services/BackgroundCheck.cs. Your VLC settings (%APPDATA%\vlc) are never touched.
+const
+  BgTaskName = 'VlcNightlyUpdater Background Check';
+  BgAumid    = 'StrikerXR.VlcNightlyUpdater';
+
+procedure RunHidden(const Exe, Params: String);
 var
-  Dir: String;
+  Code: Integer;
+begin
+  Exec(Exe, Params, '', SW_HIDE, ewWaitUntilTerminated, Code);
+end;
+
+function InitializeUninstall(): Boolean;
+begin
+  // Remove the scheduled task first so nothing restarts the app, then close it so its files can be deleted.
+  RunHidden(ExpandConstant('{sys}\schtasks.exe'), '/Delete /TN "' + BgTaskName + '" /F');
+  RunHidden(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#MyAppExe}');
+  Result := True;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usPostUninstall then
   begin
-    Dir := ExpandConstant('{localappdata}\VlcNightlyUpdater');
-    if DirExists(Dir) and (not UninstallSilent()) then
-    begin
-      if SuppressibleMsgBox(
-           'Also delete the updater''s saved settings?' + #13#10 + #13#10 +
-           'Your VLC settings are never touched either way.',
-           mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES then
-        DelTree(Dir, True, True, True);
-    end;
+    // Saved settings, cached VLC installers, state file
+    DelTree(ExpandConstant('{localappdata}\VlcNightlyUpdater'), True, True, True);
+    // Leftover self-update downloads
+    DelTree(AddBackslash(GetEnv('TEMP')) + 'VlcNightlyUpdater', True, True, True);
+
+    // Notification + click-to-open registration (only exists if background checks were ever turned on)
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\AppUserModelId\' + BgAumid);
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\vlcnightlyupdater');
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\' + BgAumid);
   end;
 end;
