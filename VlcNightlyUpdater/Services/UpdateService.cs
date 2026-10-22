@@ -19,31 +19,40 @@ public sealed class UpdateService
         return c;
     }
 
-    /// <summary>Newest dated folder that actually contains the win64 .exe installer.</summary>
-    public async Task<BuildInfo> GetLatestAsync(CancellationToken ct)
+    /// <summary>All dated build folders, newest first (e.g. 20261021-0426).</summary>
+    public async Task<List<string>> ListFoldersAsync(CancellationToken ct)
     {
         var html = await Http.GetStringAsync(BaseUrl, ct);
-
-        var folders = Regex.Matches(html, @"href=""(\d{8}-\d{4})/""")
+        return Regex.Matches(html, @"href=""(\d{8}-\d{4})/""")
             .Select(m => m.Groups[1].Value)
             .Distinct()
             .OrderByDescending(f => f, StringComparer.Ordinal)
-            .Take(5); // newest might still be uploading, so look a few back
+            .ToList();
+    }
 
-        foreach (var folder in folders)
+    /// <summary>Finds the win64 .exe installer inside one build folder, or null if it isn't there (yet).</summary>
+    public async Task<BuildInfo?> ResolveAsync(string folder, CancellationToken ct)
+    {
+        var folderUrl = $"{BaseUrl}{folder}/";
+        string page;
+        try { page = await Http.GetStringAsync(folderUrl, ct); }
+        catch (HttpRequestException) { return null; }
+
+        var m = Regex.Match(page, @"href=""(vlc-[^""/]+-win64-[0-9a-f]+\.exe)""");
+        if (!m.Success) return null;
+
+        var exe = m.Groups[1].Value;
+        return new BuildInfo(folder, exe, folderUrl + exe, folderUrl + "SHA512SUM");
+    }
+
+    /// <summary>Newest build that actually has an .exe (the very newest may still be uploading).</summary>
+    public async Task<BuildInfo> GetLatestAsync(IEnumerable<string> folders, CancellationToken ct)
+    {
+        foreach (var folder in folders.Take(5))
         {
-            var folderUrl = $"{BaseUrl}{folder}/";
-            string page;
-            try { page = await Http.GetStringAsync(folderUrl, ct); }
-            catch (HttpRequestException) { continue; }
-
-            var m = Regex.Match(page, @"href=""(vlc-[^""/]+-win64-[0-9a-f]+\.exe)""");
-            if (!m.Success) continue;
-
-            var exe = m.Groups[1].Value;
-            return new BuildInfo(folder, exe, folderUrl + exe, folderUrl + "SHA512SUM");
+            var b = await ResolveAsync(folder, ct);
+            if (b is not null) return b;
         }
-
         throw new InvalidOperationException("Couldn't find a nightly build with an .exe installer.");
     }
 

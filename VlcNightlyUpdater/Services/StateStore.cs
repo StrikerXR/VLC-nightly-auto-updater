@@ -6,6 +6,14 @@ public sealed class AppState
 {
     /// <summary>Folder name of the nightly we last installed/assumed, e.g. 20261021-0426.</summary>
     public string? InstalledBuild { get; set; }
+
+    public DateTime? LastChecked { get; set; }
+
+    /// <summary>true = install updates as soon as the app opens; false = show "Update now" first.</summary>
+    public bool AutoUpdate { get; set; } = true;
+
+    public bool LaunchAfterUpdate { get; set; }
+    public bool CloseAfterUpdate { get; set; }
 }
 
 /// <summary>Plain JSON in %LOCALAPPDATA% (unpackaged apps can't use ApplicationData.LocalSettings).</summary>
@@ -28,7 +36,11 @@ public static class StateStore
 
     public static void Save(AppState state)
     {
-        Directory.CreateDirectory(Dir);
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(state));
+        try
+        {
+            Directory.CreateDirectory(Dir);
+            File.WriteAllText(FilePath, JsonSerializer.Serialize(state));
+        }
+        catch { /* non-fatal */ }
     }
 }
