@@ -1,0 +1,223 @@
+<Window
+    x:Class="VlcNightlyUpdater.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="VLC Nightly Updater">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid x:Name="Root">
+        <Grid.Resources>
+            <Style x:Key="CardBorder" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="12" />
+            </Style>
+        </Grid.Resources>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Custom title area (drag region). Native min/close buttons overlay on the right. -->
+        <Grid x:Name="TitleBarArea" Padding="16,0,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <Border Width="22" Height="22" CornerRadius="6" Background="#FF8800">
+                    <FontIcon Glyph="&#xE896;" FontSize="12" Foreground="White" />
+                </Border>
+                <TextBlock Text="VLC Nightly Updater" Style="{StaticResource CaptionTextBlockStyle}"
+                           VerticalAlignment="Center" />
+                <TextBlock x:Name="VersionText" Style="{StaticResource CaptionTextBlockStyle}"
+                           VerticalAlignment="Center" Opacity="0.5" />
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1" Padding="24,4,24,20" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Spacing="12">
+
+            <!-- Shown when a newer updater exists and automatic self-update is off (or failed) -->
+            <InfoBar x:Name="SelfUpdateBar" IsOpen="False" IsClosable="False" Severity="Informational"
+                     Title="Updater update available" Message="">
+                <InfoBar.ActionButton>
+                    <Button x:Name="SelfUpdateButton" Content="Update now" Click="SelfUpdateButton_Click" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+
+            <!-- Status card -->
+            <Border Style="{StaticResource CardBorder}" Padding="20">
+                <Grid ColumnSpacing="16" RowSpacing="18">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <Border x:Name="IconBadge" Width="52" Height="52" CornerRadius="26"
+                            Background="#33FF8800" VerticalAlignment="Top">
+                        <FontIcon x:Name="StatusIcon" Glyph="&#xE895;" FontSize="24" Foreground="#FF8800" />
+                    </Border>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                        <TextBlock x:Name="StatusText" Style="{StaticResource SubtitleTextBlockStyle}"
+                                   TextWrapping="Wrap" Text="Starting…" />
+                        <TextBlock x:Name="DetailText" TextWrapping="Wrap" Opacity="0.7"
+                                   Visibility="Collapsed" />
+                    </StackPanel>
+
+                    <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ProgressBar x:Name="DownloadBar" VerticalAlignment="Center"
+                                     Minimum="0" Maximum="100" Foreground="#FF8800" IsIndeterminate="True" />
+                        <Button x:Name="CancelButton" Grid.Column="1" Content="Cancel" Visibility="Collapsed"
+                                Click="CancelButton_Click" />
+                    </Grid>
+                </Grid>
+            </Border>
+
+            </StackPanel>
+
+            <!-- Build tiles -->
+            <Grid Grid.Row="1" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Style="{StaticResource CardBorder}" Padding="16,12">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="INSTALLED BUILD" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" />
+                        <TextBlock x:Name="InstalledText" Text="—" FontFamily="Consolas" FontSize="16" />
+                        <TextBlock x:Name="InstalledDate" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1" Style="{StaticResource CardBorder}" Padding="16,12">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="LATEST NIGHTLY" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" />
+                        <TextBlock x:Name="LatestText" Text="—" FontFamily="Consolas" FontSize="16" />
+                        <TextBlock x:Name="LatestDate" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Options -->
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                <Expander Header="Options &amp; other builds" HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch" VerticalAlignment="Top">
+                    <StackPanel Spacing="10">
+                        <Grid>
+                            <TextBlock Text="Update automatically when opened" VerticalAlignment="Center" />
+                            <ToggleSwitch x:Name="AutoToggle" HorizontalAlignment="Right" MinWidth="0"
+                                          OnContent="" OffContent="" Toggled="Option_Toggled" />
+                        </Grid>
+                        <Grid>
+                            <TextBlock Text="Launch VLC after updating" VerticalAlignment="Center" />
+                            <ToggleSwitch x:Name="LaunchToggle" HorizontalAlignment="Right" MinWidth="0"
+                                          OnContent="" OffContent="" Toggled="Option_Toggled" />
+                        </Grid>
+                        <Grid>
+                            <TextBlock Text="Close this updater after updating" VerticalAlignment="Center" />
+                            <ToggleSwitch x:Name="CloseToggle" HorizontalAlignment="Right" MinWidth="0"
+                                          OnContent="" OffContent="" Toggled="Option_Toggled" />
+                        </Grid>
+
+                        <Grid>
+                            <TextBlock Text="Reopen VLC afterwards if it was running" VerticalAlignment="Center" />
+                            <ToggleSwitch x:Name="ReopenToggle" HorizontalAlignment="Right" MinWidth="0"
+                                          OnContent="" OffContent="" Toggled="Option_Toggled" />
+                        </Grid>
+                        <Grid>
+                            <TextBlock Text="Keep this updater up to date automatically" VerticalAlignment="Center" />
+                            <ToggleSwitch x:Name="SelfToggle" HorizontalAlignment="Right" MinWidth="0"
+                                          OnContent="" OffContent="" Toggled="Option_Toggled" />
+                        </Grid>
+
+                        <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                        <TextBlock Text="VLC build (64-bit / ARM64)"
+                                   Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                        <ComboBox x:Name="ArchPicker" HorizontalAlignment="Stretch"
+                                  SelectionChanged="ArchPicker_SelectionChanged" />
+
+                        <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                        <TextBlock Text="Install a specific build (rollback or reinstall)"
+                                   Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="BuildPicker" HorizontalAlignment="Stretch" DisplayMemberPath="Label"
+                                      PlaceholderText="Pick a build…" SelectionChanged="BuildPicker_SelectionChanged" />
+                            <Button x:Name="InstallSelectedButton" Grid.Column="1" Content="Install"
+                                    IsEnabled="False" Click="InstallSelectedButton_Click" />
+                        </Grid>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="CacheText" VerticalAlignment="Center" Opacity="0.6"
+                                       Style="{StaticResource CaptionTextBlockStyle}" />
+                            <Button x:Name="ClearCacheButton" Grid.Column="1" Content="Clear cache"
+                                    Click="ClearCacheButton_Click" />
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+            </ScrollViewer>
+
+            <!-- Actions -->
+            <Grid Grid.Row="3" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel VerticalAlignment="Center" Spacing="0">
+                    <HyperlinkButton x:Name="ChangesButton" Padding="0" Visibility="Collapsed"
+                                     Click="ChangesButton_Click" />
+                    <TextBlock x:Name="LastCheckedText" Opacity="0.6"
+                               Style="{StaticResource CaptionTextBlockStyle}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="ConfigButton" Click="ConfigButton_Click"
+                            ToolTipService.ToolTip="Open VLC settings folder">
+                        <FontIcon Glyph="&#xE838;" FontSize="14" />
+                    </Button>
+                    <Button x:Name="LaunchButton" Click="LaunchButton_Click" IsEnabled="False">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE768;" FontSize="14" />
+                            <TextBlock Text="Launch VLC" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="PrimaryButton" Click="PrimaryButton_Click" IsEnabled="False"
+                            Style="{StaticResource AccentButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon x:Name="PrimaryIcon" Glyph="&#xE72C;" FontSize="14" />
+                            <TextBlock x:Name="PrimaryText" Text="Check again" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
