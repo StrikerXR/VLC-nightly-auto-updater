@@ -1,14 +1,11 @@
 name: Build & Release
 
 on:
-  push:
-    branches: [main]
-    paths-ignore: ['**.md']
   workflow_dispatch:
 
 permissions:
-  contents: write   # create the GitHub Release
-  actions: read     # download the build artifacts in the release job
+  contents: write    # create the GitHub Release
+  actions: read      # download the build artifacts in the release job
 
 env:
   # Pinned on purpose: the runner image ships an older Inno Setup (6.x). Bump here to move to a newer release.
@@ -107,7 +104,6 @@ jobs:
   # Runs once, after ALL three installers exist, so the in-app self-updater never sees a half-uploaded release.
   release:
     needs: [version, build]
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
       APP_VERSION: ${{ needs.version.outputs.app }}
