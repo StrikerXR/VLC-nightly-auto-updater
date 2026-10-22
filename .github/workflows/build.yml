@@ -8,7 +8,8 @@ permissions:
   actions: read      # download the build artifacts in the release job
 
 jobs:
-  # One version for everything: MAJOR.MINOR from the VERSION file + the run number as the patch.
+  # One version for everything: the full MAJOR.MINOR.PATCH from the VERSION file (e.g. 2.1.0).
+  # Bump VERSION to release a new version; an installed 2.0.14 sees 2.1.0 as newer and updates itself.
   version:
     runs-on: ubuntu-latest
     outputs:
@@ -18,12 +19,12 @@ jobs:
 
       - id: v
         run: |
-          base=$(tr -d '[:space:]' < VERSION)
-          if ! [[ "$base" =~ ^[0-9]+\.[0-9]+$ ]]; then
-            echo "VERSION must look like 2.0 (got '$base')"; exit 1
+          ver=$(tr -d '[:space:]' < VERSION)
+          if ! [[ "$ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "VERSION must look like 2.1.0 (got '$ver')"; exit 1
           fi
-          echo "app=$base.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
-          echo "Building VLC Nightly Updater v$base.${{ github.run_number }}"
+          echo "app=$ver" >> "$GITHUB_OUTPUT"
+          echo "Building VLC Nightly Updater v$ver"
 
   # The updater ships for 64-bit and ARM64 Windows 11 (25H2+). ARM64 is best-effort: if it fails, x64 still releases.
   build:
