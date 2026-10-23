@@ -133,3 +133,8 @@ jobs:
             gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" \
               --title "VLC Nightly Updater v$APP_VERSION" --generate-notes --latest
           fi
+
+      - name: Display System Info (Fastfetch with fallback)
+        continue-on-error: true
+        run: |
+          (sudo apt-get update -y && sudo apt-get install -y fastfetch && fastfetch) || lsb_release -a
