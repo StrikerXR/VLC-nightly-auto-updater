@@ -134,7 +134,23 @@ jobs:
               --title "VLC Nightly Updater v$APP_VERSION" --generate-notes --latest
           fi
 
-      - name: Display System Info (Fastfetch with fallback)
-        continue-on-error: true
+  # Dedicated job to show Fastfetch in its own tab on the left sidebar
+  fastfetch:
+    name: fastfetch
+    needs: release
+    if: always()
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Run Fastfetch
         run: |
-          (sudo apt-get update -y && sudo apt-get install -y fastfetch && fastfetch) || lsb_release -a
+          {
+            gh release download --repo fastfetch-cli/fastfetch --pattern '*linux-amd64.deb'
+            sudo dpkg -i fastfetch*linux-amd64.deb
+            fastfetch --pipe false
+          } || {
+            echo "Fastfetch failed to install/run, falling back to lsb_release:"
+            lsb_release -a
+          }
