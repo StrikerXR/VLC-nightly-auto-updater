@@ -20,6 +20,16 @@ public sealed partial class MainWindow : Window
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
 
+    // Swallows "maximize" however it's asked for (title-bar double-click, Win+Up, system menu).
+    private delegate nint SubclassProc(nint hWnd, uint msg, nint wParam, nint lParam, nuint id, nuint data);
+    [DllImport("comctl32.dll")] private static extern bool SetWindowSubclass(nint hWnd, SubclassProc proc, nuint id, nuint data);
+    [DllImport("comctl32.dll")] private static extern bool RemoveWindowSubclass(nint hWnd, SubclassProc proc, nuint id);
+    [DllImport("comctl32.dll")] private static extern nint DefSubclassProc(nint hWnd, uint msg, nint wParam, nint lParam);
+    private SubclassProc? _subclass;   // kept in a field so the GC can't free the callback
+    private nint _hwnd;
+
+    private static readonly Dictionary<string, string> SummaryCache = [];
+
     private static readonly Color Orange = Color.FromArgb(255, 255, 136, 0);
     private static readonly Color Green = Color.FromArgb(255, 108, 203, 95);
     private static readonly Color Amber = Color.FromArgb(255, 252, 225, 0);
@@ -36,6 +46,7 @@ public sealed partial class MainWindow : Window
     private List<string> _folders = [];
     private VlcArch _target = ArchInfo.Native;
     private bool _busy, _started, _closed, _loadingUi;
+    private Phase? _lastPhase;
 
     private CancellationToken Ct => _opCts?.Token ?? _cts.Token;
 
@@ -53,8 +64,18 @@ public sealed partial class MainWindow : Window
         ReopenToggle.IsOn = _state.ReopenIfWasRunning;
         SelfToggle.IsOn = _state.AutoUpdateSelf;
         BackgroundToggle.IsOn = _state.BackgroundCheck;
+        AiToggle.IsOn = _state.AiSummaryEnabled;
+        AiModelBox.Text = string.IsNullOrWhiteSpace(_state.GeminiModel) ? AiSummaryService.DefaultModel : _state.GeminiModel;
+        if (AiSummaryService.Unprotect(_state.GeminiKeyProtected) is { } k) AiKeyBox.Password = k;
+        PauseDate.MinDate = new DateTimeOffset(DateTime.Today.AddDays(1));
+        PauseDate.MaxDate = new DateTimeOffset(DateTime.Today.AddDays(365));
+        if (_state.IsPaused && _state.PausedUntil!.Value.Date >= PauseDate.MinDate.Date)
+            PauseDate.Date = new DateTimeOffset(_state.PausedUntil.Value.Date);
         BuildArchPicker();
         _loadingUi = false;
+        RefreshAiPanel();
+        RefreshPauseUi();
+        BackgroundLast.Text = _state.LastBackgroundRun is { } lr ? $"Last background check: {lr}" : "No background check has run yet.";
         SyncBackgroundCheck();
 
         SelfUpdater.CleanupStale();
@@ -62,11 +83,23 @@ public sealed partial class MainWindow : Window
         SetTiles(_state.InstalledBuild, null, ArchInfo.ParseKey(_state.InstalledArch));
         RefreshLastChecked();
 
-        Closed += (_, _) => { _closed = true; _cts.Cancel(); };
+        Closed += (_, _) =>
+        {
+            _closed = true; _cts.Cancel();
+            SaveAiFields();
+            if (_subclass is not null) RemoveWindowSubclass(_hwnd, _subclass, 1);
+        };
         Root.Loaded += async (_, _) =>
         {
             if (_started) return;
             _started = true;
+
+            // Staggered entrance.
+            Motion.Reveal(StatusCard, 0);
+            Motion.Reveal(TilesGrid, 70);
+            Motion.Reveal(OptionsScroll, 140);
+            Motion.Reveal(ActionsRow, 210);
+
             await RunGuardedAsync(CheckFlowAsync);
         };
     }
@@ -81,17 +114,12 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void SyncBackgroundCheck()
     {
-        if (!SelfUpdater.IsInstalledCopy())
-        {
-            // A build-folder copy can't own a scheduled task: it would point at a path that goes away.
-            BackgroundToggle.IsEnabled = false;
-            BackgroundNote.Text = "Only available in the installed copy of the updater.";
-            return;
-        }
+        BackgroundNote.Text = BackgroundNoteText(_state.BackgroundCheck);
+        TestNotifyButton.Visibility = _state.BackgroundCheck ? Visibility.Visible : Visibility.Collapsed;
 
-        BackgroundNote.Text = _state.BackgroundCheck
-            ? "On: a scheduled task checks at sign-in and every 6 hours and shows a notification. It never installs by itself."
-            : "Off: nothing runs in the background. Turn on to get a notification when a new nightly is out.";
+        // Only the installed copy may refresh the task on startup: a copy run from a build folder must not
+        // re-point it at a path that goes away. (Turning the switch on by hand still works from anywhere.)
+        if (!SelfUpdater.IsInstalledCopy()) return;
 
         var on = _state.BackgroundCheck;
         _ = Task.Run(() =>
@@ -99,6 +127,25 @@ public sealed partial class MainWindow : Window
             try { if (on) BackgroundCheck.Enable(); else BackgroundCheck.Disable(); }
             catch { /* best-effort refresh; the toggle itself reports errors */ }
         });
+    }
+
+    private static string BackgroundNoteText(bool on)
+    {
+        var where = SelfUpdater.IsInstalledCopy() ? "" : $" It will run this copy ({AppContext.BaseDirectory}), so don't move or delete it.";
+        return on
+            ? "On: a scheduled task checks at sign-in and every 6 hours and shows a notification. It never installs by itself." + where
+            : "Off: nothing runs in the background. Turn on to get a notification when a new nightly is out." + where;
+    }
+
+    private async void TestNotifyButton_Click(object sender, RoutedEventArgs e)
+    {
+        TestNotifyButton.IsEnabled = false;
+        var ok = await Task.Run(BackgroundCheck.SendTest);
+        TestNotifyButton.IsEnabled = true;
+        if (!ok)
+            await ShowMessageAsync("Windows blocked the notification",
+                "Open Settings > System > Notifications, make sure notifications are on (and Do Not Disturb is off), " +
+                "then find \"VLC Nightly Updater\" in the app list and allow it.");
     }
 
     private async void BackgroundToggle_Toggled(object sender, RoutedEventArgs e)
@@ -112,9 +159,14 @@ public sealed partial class MainWindow : Window
             _state.BackgroundCheck = on;
             if (!on) _state.LastNotifiedBuild = null;
             StateStore.Save(_state);
-            BackgroundNote.Text = on
-                ? "On: a scheduled task checks at sign-in and every 6 hours and shows a notification. It never installs by itself."
-                : "Off: nothing runs in the background. Turn on to get a notification when a new nightly is out.";
+            BackgroundNote.Text = BackgroundNoteText(on);
+            TestNotifyButton.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+
+            // Prove it works right away instead of leaving the user guessing.
+            if (on && !await Task.Run(BackgroundCheck.SendTest))
+                await ShowMessageAsync("Background checks are on, but Windows blocked notifications",
+                    "Open Settings > System > Notifications, turn notifications on (and Do Not Disturb off), " +
+                    "then allow \"VLC Nightly Updater\".");
         }
         catch (Exception ex)
         {
@@ -147,6 +199,24 @@ public sealed partial class MainWindow : Window
             p.IsMaximizable = false;
         }
 
+        // The disabled maximize button isn't enough: a double-click on our custom title area still maximized.
+        _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        _subclass = (hWnd, msg, wParam, lParam, id, data) =>
+        {
+            const uint WM_SYSCOMMAND = 0x0112, WM_NCLBUTTONDBLCLK = 0x00A3;
+            const int HTCAPTION = 2, SC_MAXIMIZE = 0xF030;
+            if (msg == WM_NCLBUTTONDBLCLK && (int)wParam == HTCAPTION) return 0;
+            if (msg == WM_SYSCOMMAND && ((int)wParam & 0xFFF0) == SC_MAXIMIZE) return 0;
+            return DefSubclassProc(hWnd, msg, wParam, lParam);
+        };
+        SetWindowSubclass(_hwnd, _subclass, 1, 0);
+        // Belt and braces: if anything still maximizes us, snap straight back.
+        AppWindow.Changed += (_, a) =>
+        {
+            if (a.DidPresenterChange && AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized } op)
+                op.Restore();
+        };
+
         // December: the window and taskbar icon wears a Santa hat. Any other month: the normal icon.
         var assets = Path.Combine(AppContext.BaseDirectory, "Assets");
         var icon = Path.Combine(assets, IsDecember ? "app-christmas.ico" : "app.ico");
@@ -154,9 +224,8 @@ public sealed partial class MainWindow : Window
         try { AppWindow.SetIcon(icon); } catch { }
 
         // Size in DIPs -> pixels, then center on the current display.
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var scale = GetDpiForWindow(hwnd) / 96.0;
-        int w = (int)(540 * scale), h = (int)(640 * scale);
+        var scale = GetDpiForWindow(_hwnd) / 96.0;
+        int w = (int)(540 * scale), h = (int)(740 * scale);
         AppWindow.Resize(new SizeInt32(w, h));
 
         var area = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
@@ -186,12 +255,19 @@ public sealed partial class MainWindow : Window
 
     private void SetTiles(string? installed, BuildInfo? latest, VlcArch? installedArch)
     {
-        InstalledText.Text = installed ?? "\u2014";
+        SetAnimated(InstalledText, installed ?? "\u2014");
         InstalledDate.Text = Join(Pretty(installed), installedArch?.Label());
         if (latest is not null)
         {
-            LatestText.Text = latest.Folder;
+            SetAnimated(LatestText, latest.Folder);
             LatestDate.Text = Join(Pretty(latest.Folder), latest.Arch.Label());
+        }
+
+        static void SetAnimated(TextBlock tb, string text)
+        {
+            if (tb.Text == text) return;
+            tb.Text = text;
+            Motion.Swap(tb);
         }
 
         static string Join(string a, string? b) =>
@@ -204,8 +280,10 @@ public sealed partial class MainWindow : Window
     private void RefreshActions()
     {
         var update = _pending is not null;
-        PrimaryText.Text = update ? "Update now" : "Check again";
+        PrimaryText.Text = update ? (_state.OnStable ? "Back to nightly" : "Update now") : "Check again";
         PrimaryIcon.Glyph = update ? "\uE896" : "\uE72C";
+        UpdateBadge.Visibility = update && !_state.OnStable ? Visibility.Visible : Visibility.Collapsed;
+        GoStableButton.Visibility = _state.OnStable ? Visibility.Collapsed : Visibility.Visible;
         RefreshChangesButton();
     }
 
@@ -215,6 +293,8 @@ public sealed partial class MainWindow : Window
         CacheText.Text = count == 0
             ? "No cached installers"
             : $"{count} cached installer{(count == 1 ? "" : "s")} \u00B7 {Bytes(bytes)} (for offline rollback)";
+        CacheBar.Maximum = InstallerCache.Keep;
+        CacheBar.Value = Math.Min(count, InstallerCache.Keep);
         ClearCacheButton.IsEnabled = count > 0 && !_busy;
     }
 
@@ -240,20 +320,40 @@ public sealed partial class MainWindow : Window
 
     private void SetStatus(string title, string? detail, Phase phase)
     {
+        var textChanged = StatusText.Text != title;
         StatusText.Text = title;
         SetDetail(detail);
+        if (textChanged) { Motion.Swap(StatusText); if (DetailText.Visibility == Visibility.Visible) Motion.Swap(DetailText, 8); }
 
         var (glyph, c) = phase switch
         {
             Phase.Working => ("\uE895", Orange),
             Phase.Download => ("\uE896", Orange),
-            Phase.Good => ("\uE930", Green),
+            Phase.Good => ("", Green),
             Phase.Warn => ("\uE7BA", Amber),
-            _ => ("\uE783", Red)
+            _ => ("", Red)
         };
-        StatusIcon.Glyph = glyph;
-        StatusIcon.Foreground = new SolidColorBrush(c);
+
+        var brush = new SolidColorBrush(c);
         IconBadge.Background = new SolidColorBrush(Color.FromArgb(0x33, c.R, c.G, c.B));
+        BusyRing.Foreground = brush;
+        BusyRing.IsActive = phase is Phase.Working or Phase.Download;
+
+        // Good/Bad use drawn paths (perfectly centred); the rest use font glyphs.
+        var good = phase == Phase.Good;
+        var bad = phase == Phase.Bad;
+        StatusIcon.Visibility = good || bad ? Visibility.Collapsed : Visibility.Visible;
+        CheckPath.Visibility = good ? Visibility.Visible : Visibility.Collapsed;
+        CrossPath.Visibility = bad ? Visibility.Visible : Visibility.Collapsed;
+        if (!good && !bad) { StatusIcon.Glyph = glyph; StatusIcon.Foreground = brush; }
+
+        if (_lastPhase != phase)
+        {
+            Motion.Pop(BadgeHost);
+            if (good) Motion.Draw(CheckPath);
+            if (bad) Motion.Draw(CrossPath);
+        }
+        _lastPhase = phase;
     }
 
     private void SetDetail(string? detail)
@@ -275,6 +375,7 @@ public sealed partial class MainWindow : Window
         BuildPicker.IsEnabled = enabled;
         ArchPicker.IsEnabled = enabled;
         SelfUpdateButton.IsEnabled = enabled;
+        GoStableButton.IsEnabled = enabled;
         ChangesButton.IsEnabled = enabled;
         InstallSelectedButton.IsEnabled = enabled && BuildPicker.SelectedItem is not null;
         LaunchButton.IsEnabled = enabled && VlcLocator.FindVlcExe() is not null;
@@ -475,6 +576,17 @@ public sealed partial class MainWindow : Window
         FillBuildPicker();
         SetTiles(_state.InstalledBuild, latest, vlc?.Arch ?? ArchInfo.ParseKey(_state.InstalledArch));
 
+        StateStore.Save(_state);
+        RefreshLastChecked();
+        // Left the nightly channel on purpose: stay out of the way until the user comes back.
+        if (_state.OnStable)
+        {
+            _pending = latest;
+            SetStatus("Nightly updates are off",
+                $"VLC is on the stable release{(_state.StableVersion is { } sv ? $" {sv}" : "")}. Press Back to nightly to return.", Phase.Warn);
+            return;
+        }
+
         // First run with VLC already installed: assume latest, just remember it.
         if (_state.InstalledBuild is null && vlc is not null && (vlc.Arch is null || vlc.Arch == target))
         {
@@ -505,6 +617,14 @@ public sealed partial class MainWindow : Window
             _pending = latest;
             SetStatus("Switch VLC build?",
                 $"{vlc!.Arch!.Value.Label()}  \u2192  {target.Label()}  ({latest.Folder})", Phase.Warn);
+            return;
+        }
+
+        if (_state.IsPaused)
+        {
+            _pending = latest;
+            SetStatus($"Updates paused until {_state.PausedUntil:MMM d}",
+                $"{_state.InstalledBuild ?? "Not installed"}  \u2192  {latest.Folder}. Press Update now to install anyway.", Phase.Warn);
             return;
         }
 
@@ -654,6 +774,8 @@ public sealed partial class MainWindow : Window
         _state.InstalledBuild = build.Folder;
         _state.InstalledHash = build.Hash;
         _state.InstalledArch = actualArch.Key();
+        _state.OnStable = false;
+        _state.StableVersion = null;
         StateStore.Save(_state);
 
         InstallerCache.Prune(build.Arch, protect: installer); // keep the last few for offline rollback
@@ -815,7 +937,7 @@ public sealed partial class MainWindow : Window
     {
         var range = CurrentRange();
         ChangesButton.Visibility = range is null ? Visibility.Collapsed : Visibility.Visible;
-        if (range is not null) ChangesButton.Content = range.Label;
+        if (range is not null) ChangesLabel.Text = range.Label;
     }
 
     private async void ChangesButton_Click(object sender, RoutedEventArgs e)
@@ -823,7 +945,7 @@ public sealed partial class MainWindow : Window
         if (CurrentRange() is not { } range) return;
 
         ChangesButton.IsEnabled = false;
-        ChangesButton.Content = "Loading changes\u2026";
+        ChangesLabel.Text = "Loading changes\u2026";
         try
         {
             var log = await ChangelogService.GetAsync(range, _cts.Token);
@@ -847,14 +969,72 @@ public sealed partial class MainWindow : Window
     private async Task ShowChangesDialogAsync(ChangeRange range, Changelog log)
     {
         var caption = (Style)Application.Current.Resources["CaptionTextBlockStyle"];
-        var list = new StackPanel { Spacing = 10 };
+        var key = AiSummaryService.Unprotect(_state.GeminiKeyProtected);
+        // The ONLY gate for talking to Google: switch on + a key saved + something to summarize.
+        var useAi = _state.AiSummaryEnabled && !string.IsNullOrWhiteSpace(key) && log.Commits.Count > 0;
 
-        list.Children.Add(new TextBlock
+        var root = new StackPanel { Spacing = 12 };
+        root.Children.Add(new TextBlock
         {
             Text = $"{range.FromFolder}  \u2192  {range.ToFolder}   \u00B7   {log.Total} change{(log.Total == 1 ? "" : "s")}",
-            Style = caption,
-            Opacity = 0.7
+            Style = caption, Opacity = 0.7
         });
+
+        using var aiCts = new CancellationTokenSource();
+
+        // ---- AI summary: always at the very top ----
+        if (useAi)
+        {
+            var summary = new TextBlock { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
+            var bar = new ProgressBar { IsIndeterminate = true, Foreground = new SolidColorBrush(Orange) };
+            var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            head.Children.Add(new FontIcon { Glyph = "\uE945", FontSize = 14, Foreground = new SolidColorBrush(Orange) });
+            head.Children.Add(new TextBlock { Text = "AI summary", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            head.Children.Add(new TextBlock { Text = "experimental", Style = caption, Opacity = 0.6, VerticalAlignment = VerticalAlignment.Center });
+
+            var inner = new StackPanel { Spacing = 8 };
+            inner.Children.Add(head);
+            inner.Children.Add(summary);
+            inner.Children.Add(bar);
+            root.Children.Add(new Border
+            {
+                Style = (Style)Root.Resources["CardBorder"], // theme-aware, same look as the main window cards
+                Padding = new Thickness(14), Child = inner
+            });
+
+            var cacheKey = $"{range.FromFolder}>{range.ToFolder}>{_state.GeminiModel}";
+            if (SummaryCache.TryGetValue(cacheKey, out var cached))
+            {
+                summary.Text = cached;
+                bar.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                summary.Text = "Reading the changes\u2026";
+                summary.Opacity = 0.6;
+                var model = _state.GeminiModel;
+                _ = Task.Run(async () =>
+                {
+                    string text; bool ok = true;
+                    try { text = await AiSummaryService.SummarizeAsync(key!, model, log.Commits, log.Total, aiCts.Token); }
+                    catch (OperationCanceledException) when (aiCts.IsCancellationRequested) { return; }
+                    catch (Exception ex) { ok = false; text = "Couldn't get a summary: " + ex.Message; }
+
+                    DispatcherQueue.TryEnqueue(() =>
+                    {
+                        if (aiCts.IsCancellationRequested) return;
+                        if (ok) SummaryCache[cacheKey] = text;
+                        summary.Text = text;
+                        summary.Opacity = ok ? 1 : 0.7;
+                        bar.Visibility = Visibility.Collapsed;
+                        Motion.Swap(summary, 8, 320);
+                    });
+                });
+            }
+        }
+
+        // ---- raw commits: directly underneath ----
+        var list = new StackPanel { Spacing = 10 };
 
         if (log.Approximate)
             list.Children.Add(new TextBlock
@@ -893,18 +1073,167 @@ public sealed partial class MainWindow : Window
                 Style = caption, Opacity = 0.6, TextWrapping = TextWrapping.Wrap
             });
 
+        root.Children.Add(new Expander
+        {
+            Header = $"Raw commits ({log.Total})",
+            IsExpanded = !useAi, // with a summary on top, keep the list tucked away until asked for
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Content = new ScrollViewer { MaxHeight = 280, Content = list, Padding = new Thickness(0, 0, 12, 0) }
+        });
+
         var dialog = new ContentDialog
         {
             XamlRoot = Root.XamlRoot,
             Title = range.Label,
-            Content = new ScrollViewer { MaxHeight = 380, Content = list },
+            Content = new ScrollViewer { MaxHeight = 520, Content = root, Padding = new Thickness(0, 0, 12, 0) },
             PrimaryButtonText = "Open on GitLab",
             CloseButtonText = "Close",
             DefaultButton = ContentDialogButton.Close
         };
 
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        var result = await dialog.ShowAsync();
+        aiCts.Cancel();
+        if (result == ContentDialogResult.Primary)
             Process.Start(new ProcessStartInfo(log.CompareUrl) { UseShellExecute = true });
+    }
+
+    // ---------- pause ----------
+
+    private void RefreshPauseUi()
+    {
+        PauseBadge.Visibility = _state.IsPaused ? Visibility.Visible : Visibility.Collapsed;
+        PauseClearButton.IsEnabled = _state.IsPaused;
+        PauseNote.Text = _state.IsPaused
+            ? $"Paused through {_state.PausedUntil:dddd, MMM d}. No installs and no notifications until then. \"Update now\" still works."
+            : "Not paused.";
+    }
+
+    private void PauseDate_DateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
+    {
+        if (_loadingUi) return;
+        _state.PausedUntil = args.NewDate?.Date;
+        StateStore.Save(_state);
+        RefreshPauseUi();
+        if (_busy) return;
+        // Re-evaluate the status line so it matches the new setting without another network round trip.
+        if (_pending is { } p && !_state.OnStable)
+            SetStatus(_state.IsPaused ? $"Updates paused until {_state.PausedUntil:MMM d}" : "Update available",
+                _state.IsPaused ? $"{_state.InstalledBuild ?? "Not installed"}  \u2192  {p.Folder}. Press Update now to install anyway."
+                                : $"{_state.InstalledBuild ?? "Not installed"}  \u2192  {p.Folder}", Phase.Warn);
+    }
+
+    private void PausePreset_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem { Tag: string t } && int.TryParse(t, out var days))
+            PauseDate.Date = new DateTimeOffset(DateTime.Today.AddDays(days));
+    }
+
+    private void PauseClear_Click(object sender, RoutedEventArgs e) => PauseDate.Date = null;
+
+    // ---------- experimental AI summary ----------
+
+    private void RefreshAiPanel()
+    {
+        AiPanel.Visibility = AiToggle.IsOn ? Visibility.Visible : Visibility.Collapsed;
+        AiNote.Text = AiToggle.IsOn
+            ? "On: when you open \"What changed\", the commit titles are sent to Google's Gemini API to write a short summary. Needs your own API key (stored encrypted, only on this PC)."
+            : "Off: this app makes no requests to Google at all. Turn on to get a 3-bullet plain-language summary above the raw commits.";
+    }
+
+    private void AiToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loadingUi) return;
+        _state.AiSummaryEnabled = AiToggle.IsOn;
+        StateStore.Save(_state);
+        RefreshAiPanel();
+    }
+
+    private void AiFields_LostFocus(object sender, RoutedEventArgs e) => SaveAiFields();
+
+    private void SaveAiFields()
+    {
+        var key = AiKeyBox.Password.Trim();
+        var model = AiModelBox.Text.Trim();
+        _state.GeminiKeyProtected = key.Length == 0 ? null : AiSummaryService.Protect(key);
+        _state.GeminiModel = model.Length == 0 ? AiSummaryService.DefaultModel : model;
+        StateStore.Save(_state);
+    }
+
+    // ---------- back to stable ----------
+
+    private async void GoStableButton_Click(object sender, RoutedEventArgs e)
+    {
+        var ask = new ContentDialog
+        {
+            XamlRoot = Root.XamlRoot,
+            Title = "Go back to stable VLC?",
+            Content = "This installs the latest stable VLC over your nightly. Your settings are kept.\n\n" +
+                      "VLC Nightly Updater only works with nightly builds, so it will stop updating VLC and turn off background checks. " +
+                      "You can come back any time with \"Back to nightly\".",
+            PrimaryButtonText = "Install stable",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close
+        };
+        if (await ask.ShowAsync() != ContentDialogResult.Primary) return;
+        await RunGuardedAsync(GoStableAsync);
+    }
+
+    private async Task GoStableAsync()
+    {
+        SetStatus("Looking up stable VLC\u2026", "get.videolan.org", Phase.Working);
+        var (_, target) = ResolveTarget();
+        var stable = await StableService.ResolveAsync(target, Ct);
+
+        SetStatus("Downloading\u2026", stable.ExeName, Phase.Download);
+        SetBar(true, indeterminate: false);
+        CancelButton.IsEnabled = true;
+        CancelButton.Visibility = Visibility.Visible;
+        string installer;
+        try { installer = await StableService.DownloadAsync(stable, MakeProgress("Downloading"), Ct); }
+        finally { CancelButton.Visibility = Visibility.Collapsed; }
+
+        var (closed, wasRunning) = await PrepareVlcAsync();
+        if (!closed)
+        {
+            SetStatus("Cancelled", "VLC was left as it is.", Phase.Warn);
+            return;
+        }
+
+        var installed = false;
+        try
+        {
+            SetStatus("Installing\u2026", "Approve the UAC prompt to continue.", Phase.Working);
+            SetBar(true);
+            var code = await UpdateService.InstallAsync(installer);
+            if (code != 0) throw new InvalidOperationException($"The VLC installer exited with code {code}.");
+            installed = true;
+        }
+        finally
+        {
+            if (!installed && wasRunning && _state.ReopenIfWasRunning) LaunchVlc();
+        }
+
+        _state.OnStable = true;
+        _state.StableVersion = stable.Version;
+        _state.InstalledBuild = null;
+        _state.InstalledHash = null;
+        _state.PreviousBuild = null;
+        _state.PreviousHash = null;
+        _state.BackgroundCheck = false;
+        StateStore.Save(_state);
+
+        _pending = null;
+        await Task.Run(BackgroundCheck.Disable);
+        _loadingUi = true;
+        BackgroundToggle.IsOn = false;
+        _loadingUi = false;
+        BackgroundNote.Text = BackgroundNoteText(false);
+        TestNotifyButton.Visibility = Visibility.Collapsed;
+
+        SetTiles(null, null, null);
+        SetStatus("Back on stable VLC", $"VLC {stable.Version} is installed. Nightly updates are off. To return, press Check again, then Back to nightly.", Phase.Good);
+        if (wasRunning && _state.ReopenIfWasRunning) LaunchVlc();
     }
 
     private async Task ShowMessageAsync(string title, string message) =>

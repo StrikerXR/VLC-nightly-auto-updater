@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace VlcNightlyUpdater.Services;
 
@@ -42,6 +43,27 @@ public sealed class AppState
 
     /// <summary>Newest build the background check already notified about (so it only tells you once).</summary>
     public string? LastNotifiedBuild { get; set; }
+
+    /// <summary>When the background check last ran and what it found (shown in the Notifications section).</summary>
+    public string? LastBackgroundRun { get; set; }
+
+    /// <summary>No installs and no notifications through this day (inclusive). null = not paused.</summary>
+    public DateTime? PausedUntil { get; set; }
+
+    [JsonIgnore]
+    public bool IsPaused => PausedUntil is { } d && DateTime.Today <= d.Date;
+
+    /// <summary>true after "Go back to stable": this updater stays idle until the user switches back to nightlies.</summary>
+    public bool OnStable { get; set; }
+    public string? StableVersion { get; set; }
+
+    /// <summary>
+    /// Experimental, OFF by default. While false the app never contacts Google. The key is stored encrypted with
+    /// Windows DPAPI (current user only), never as plain text.
+    /// </summary>
+    public bool AiSummaryEnabled { get; set; }
+    public string? GeminiKeyProtected { get; set; }
+    public string GeminiModel { get; set; } = "gemini-3.8-flash";
 }
 
 /// <summary>Plain JSON in %LOCALAPPDATA% (unpackaged apps can't use ApplicationData.LocalSettings).</summary>

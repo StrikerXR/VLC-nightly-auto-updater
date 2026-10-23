@@ -188,34 +188,72 @@ public static class BackgroundCheck
             return;
         }
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
-        var ct = cts.Token;
-
-        var vlc = VlcLocator.Find();
-        if (vlc is null || state.InstalledBuild is null) return; // nothing to compare against yet
-
-        var target = ArchInfo.ParseKey(state.ArchOverride) ?? vlc.Arch ?? ArchInfo.Native;
-        if (!ArchInfo.Supported.Contains(target)) target = ArchInfo.Native;
-        if (vlc.Arch is { } have && have != target) return; // switching CPU type is always the user's call
-
-        var svc = new UpdateService { Arch = target };
-        var folders = await svc.ListFoldersAsync(ct).ConfigureAwait(false);
-        var latest = await svc.GetLatestAsync(folders, ct).ConfigureAwait(false);
-
-        if (string.CompareOrdinal(state.InstalledBuild, latest.Folder) >= 0) return; // up to date
-
-        // Re-read so a change the app made while we were checking isn't overwritten, and only tell them once per build.
-        state = StateStore.Load();
-        if (!state.BackgroundCheck || state.LastNotifiedBuild == latest.Folder) return;
-
-        if (Notify(latest, target))
+        try
         {
-            state.LastNotifiedBuild = latest.Folder;
-            StateStore.Save(state);
+            if (state.OnStable) { Record("skipped (VLC is on the stable release)"); return; }
+            if (state.IsPaused) { Record($"paused until {state.PausedUntil:MMM d}"); return; }
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+            var ct = cts.Token;
+
+            var vlc = VlcLocator.Find();
+            if (vlc is null || state.InstalledBuild is null) { Record("skipped (no VLC build to compare against yet)"); return; }
+
+            var target = ArchInfo.ParseKey(state.ArchOverride) ?? vlc.Arch ?? ArchInfo.Native;
+            if (!ArchInfo.Supported.Contains(target)) target = ArchInfo.Native;
+            if (vlc.Arch is { } have && have != target) { Record("skipped (CPU type differs, switching is your call)"); return; }
+
+            var svc = new UpdateService { Arch = target };
+            var folders = await svc.ListFoldersAsync(ct).ConfigureAwait(false);
+            var latest = await svc.GetLatestAsync(folders, ct).ConfigureAwait(false);
+
+            if (string.CompareOrdinal(state.InstalledBuild, latest.Folder) >= 0) { Record("up to date"); return; }
+
+            // Re-read so a change the app made while we were checking isn't overwritten, and only tell them once per build.
+            state = StateStore.Load();
+            if (!state.BackgroundCheck || state.IsPaused) return;
+            if (state.LastNotifiedBuild == latest.Folder) { Record($"{latest.Folder} is new (already notified)"); return; }
+
+            if (Show("New VLC nightly available",
+                     $"{latest.Folder} ({target.Label()}). Open VLC Nightly Updater to install it.", "vlc-update"))
+            {
+                state.LastNotifiedBuild = latest.Folder;
+                StateStore.Save(state);
+                Record($"notified about {latest.Folder}");
+            }
+            else Record($"{latest.Folder} is new, but Windows refused the notification");
+        }
+        catch (Exception ex)
+        {
+            Record("failed: " + ex.Message);
+            throw;
+        }
+        finally
+        {
+            await Task.Delay(1500).ConfigureAwait(false); // give Windows time to take the toast before the process exits
         }
     }
 
-    private static bool Notify(BuildInfo latest, VlcArch arch)
+    /// <summary>Remembers the outcome so the app can show "Last background check: ..." (proof it's actually running).</summary>
+    private static void Record(string what)
+    {
+        try
+        {
+            var s = StateStore.Load();
+            s.LastBackgroundRun = $"{DateTime.Now:MMM d, h:mm tt} \u00B7 {what}";
+            StateStore.Save(s);
+        }
+        catch { }
+    }
+
+    /// <summary>Shows a harmless test toast. Returns false if Windows didn't accept it.</summary>
+    public static bool SendTest()
+    {
+        RegisterNotifications();
+        return Show("Notifications are working", "This is how a new VLC nightly will be announced.", "vlc-test");
+    }
+
+    private static bool Show(string title, string body, string tag)
     {
         try
         {
@@ -226,8 +264,8 @@ public static class BackgroundCheck
                 <toast activationType="protocol" launch="{Protocol}:open">
                   <visual>
                     <binding template="ToastGeneric">
-                      <text>New VLC nightly available</text>
-                      <text>{Esc(latest.Folder)} ({Esc(arch.Label())}). Open VLC Nightly Updater to install it.</text>
+                      <text>{Esc(title)}</text>
+                      <text>{Esc(body)}</text>
                     </binding>
                   </visual>
                 </toast>
@@ -237,12 +275,13 @@ public static class BackgroundCheck
             doc.LoadXml(xml);
             var toast = new ToastNotification(doc)
             {
-                Tag = "vlc-update",              // a newer one replaces an older one instead of stacking
+                Tag = tag,                       // a newer one replaces an older one instead of stacking
                 Group = "vlc",
                 ExpirationTime = DateTimeOffset.Now.AddDays(3)
             };
-            ToastNotificationManager.CreateToastNotifier(Aumid).Show(toast);
-            return true;
+            var notifier = ToastNotificationManager.CreateToastNotifier(Aumid);
+            notifier.Show(toast);
+            return notifier.Setting == NotificationSetting.Enabled; // false when blocked in Windows settings
         }
         catch { return false; }
     }

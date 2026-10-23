@@ -1,8 +1,8 @@
-; Version and CPU type are passed in by the build (/DMyAppVersion=2.1.0 /DMyArch=arm64).
+; Version and CPU type are passed in by the build (/DMyAppVersion=2.2.0 /DMyArch=arm64).
 ; Single source for the version: the VERSION file (MAJOR.MINOR.PATCH). MyArch is x64 or arm64.
 ; Requires Windows 11 25H2 (build 26200) or newer. 64-bit and ARM64 only.
 #ifndef MyAppVersion
-  #define MyAppVersion "2.1.0"
+  #define MyAppVersion "2.2.0"
 #endif
 #ifndef MyArch
   #define MyArch "x64"

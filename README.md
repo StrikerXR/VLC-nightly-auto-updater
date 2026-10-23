@@ -68,10 +68,23 @@ an "Update now" banner instead.
 
 Updating from 1.x: 1.x can't self-update, so install a 2.0 setup once by hand. It upgrades the old install in place.
 
+## What's new in 2.2
+- New gradient icon with a rounded arrow, Mica Alt window, and a reworked layout built from WinUI 3 Expanders,
+  ProgressRing/ProgressBar, InfoBadges and a CalendarDatePicker. Smoother animations; the status check mark is now drawn
+  precisely centred.
+- **Pause VLC updates** until a date you pick (no installs, no notifications). "Update now" still works.
+- **Go back to stable**: installs the latest stable VLC (SHA-256 checked). The updater then idles until you press *Back to nightly*.
+- Background notifications: the switch now works from any copy, sends a test notification when turned on, and shows
+  when the last background check ran and what it found.
+- Maximize is blocked everywhere (title-bar double-click used to still maximize).
+- **Experimental, off by default: AI change summary.** With the switch on and your own Gemini API key saved (encrypted with
+  Windows DPAPI), "What changed" shows a 3-bullet summary above the raw commits. With it off the app never contacts Google.
+  Only public commit titles are sent. The model name is editable (default `gemini-3.8-flash`).
+
 ## Versioning (one version for everything)
-`VERSION` holds the full version (currently `2.1.0`) and that exact number is used for the app, the installers, the
-exe names (`VlcNightlyUpdater-Setup-2.1.0-x64.exe`), the git tag (`v2.1.0`) and the GitHub Release. An installed
-`2.0.14` sees `2.1.0` as newer and updates itself. To ship the next version, edit `VERSION` (e.g. `2.1.1`) and run
+`VERSION` holds the full version (currently `2.2.0`) and that exact number is used for the app, the installers, the
+exe names (`VlcNightlyUpdater-Setup-2.2.0-x64.exe`), the git tag (`v2.2.0`) and the GitHub Release. An installed
+`2.0.14` sees `2.2.0` as newer and updates itself. To ship the next version, edit `VERSION` (e.g. `2.1.1`) and run
 the workflow. Re-running the workflow for the same version just replaces that release's files.
 
 ## Releases / CI
@@ -81,7 +94,7 @@ self-updater never sees a half-uploaded release. The installer is compiled with 
 
 ## Installer
 Dark, per-user (no admin), no folder/shortcut questions, Windows 11 25H2+ only. Running a newer installer over an older
-install says it's an **update** (`2.0.14 to 2.1.0`), replaces the program files cleanly, and keeps your
+install says it's an **update** (`2.0.14 to 2.2.0`), replaces the program files cleanly, and keeps your
 settings. **Uninstalling removes everything** and asks nothing: the program files, saved settings and cached
 installers (`%LOCALAPPDATA%\VlcNightlyUpdater`), self-update downloads in `%TEMP%`, the background-check task and
 registry keys, and the Start menu entry. Your VLC settings (`%APPDATA%\vlc`) and VLC itself are never touched.
