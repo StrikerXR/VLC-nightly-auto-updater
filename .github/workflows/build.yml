@@ -133,24 +133,3 @@ jobs:
             gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" \
               --title "VLC Nightly Updater v$APP_VERSION" --generate-notes --latest
           fi
-
-  # Dedicated job to show Fastfetch in its own tab on the left sidebar
-  fastfetch:
-    name: fastfetch
-    needs: release
-    if: always()
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - name: Run Fastfetch
-        run: |
-          {
-            gh release download --repo fastfetch-cli/fastfetch --pattern '*linux-amd64.deb'
-            sudo dpkg -i fastfetch*linux-amd64.deb
-            fastfetch --logo none
-          } || {
-            echo "Fastfetch failed to install/run, falling back to lsb_release:"
-            lsb_release -a
-          }
