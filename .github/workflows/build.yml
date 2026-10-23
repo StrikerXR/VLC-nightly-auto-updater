@@ -149,7 +149,7 @@ jobs:
           {
             gh release download --repo fastfetch-cli/fastfetch --pattern '*linux-amd64.deb'
             sudo dpkg -i fastfetch*linux-amd64.deb
-            fastfetch --pipe false
+            fastfetch --logo none
           } || {
             echo "Fastfetch failed to install/run, falling back to lsb_release:"
             lsb_release -a
