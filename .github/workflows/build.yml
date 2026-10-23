@@ -11,11 +11,11 @@ jobs:
   # One version for everything: the full MAJOR.MINOR.PATCH from the VERSION file (e.g. 2.1.0).
   # Bump VERSION to release a new version; an installed 2.0.14 sees 2.1.0 as newer and updates itself.
   version:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       app: ${{ steps.v.outputs.app }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - id: v
         run: |
@@ -45,9 +45,9 @@ jobs:
     env:
       APP_VERSION: ${{ needs.version.outputs.app }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 8.0.x
 
@@ -101,7 +101,7 @@ jobs:
   # Runs once, after the installers exist (x64 required, ARM64 if it built), so the in-app self-updater never sees a half-uploaded release.
   release:
     needs: [version, build]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     env:
       APP_VERSION: ${{ needs.version.outputs.app }}
       GH_TOKEN: ${{ github.token }}
