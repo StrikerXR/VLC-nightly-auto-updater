@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Windows 7 SP1 / 8 / 8.1 edition. WinUI 3 can't run there, so this is a small WinForms app on .NET 6
+       (the last .NET that supports Windows 7). It shares the Services folder with the main app. x64 only. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <LangVersion>12</LangVersion>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>VlcNightlyUpdater</RootNamespace>
+    <AssemblyName>VlcNightlyUpdater</AssemblyName>
+    <Product>VLC Nightly Updater (Legacy)</Product>
+    <Version Condition="'$(Version)' == ''">2.3.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <ApplicationIcon>..\VlcNightlyUpdater\Assets\app.ico</ApplicationIcon>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <SupportedOSPlatformVersion>6.1</SupportedOSPlatformVersion>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\VlcNightlyUpdater\Services\StateStore.cs" Link="Services\StateStore.cs" />
+    <Compile Include="..\VlcNightlyUpdater\Services\Net.cs" Link="Services\Net.cs" />
+    <Compile Include="..\VlcNightlyUpdater\Services\VlcArch.cs" Link="Services\VlcArch.cs" />
+    <Compile Include="..\VlcNightlyUpdater\Services\VlcLocator.cs" Link="Services\VlcLocator.cs" />
+    <Compile Include="..\VlcNightlyUpdater\Services\Downloader.cs" Link="Services\Downloader.cs" />
+    <Compile Include="..\VlcNightlyUpdater\Services\UpdateService.cs" Link="Services\UpdateService.cs" />
+    <Compile Include="..\VlcNightlyUpdater\Services\InstallerCache.cs" Link="Services\InstallerCache.cs" />
+    <Compile Include="..\VlcNightlyUpdater\Services\Hashing.cs" Link="Services\Hashing.cs" />
+    <Compile Include="..\VlcNightlyUpdater\Services\ChangelogService.cs" Link="Services\ChangelogService.cs" />
+    <Compile Include="..\VlcNightlyUpdater\Services\AiSummaryService.cs" Link="Services\AiSummaryService.cs" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="6.0.0" />
+  </ItemGroup>
+
+</Project>

@@ -146,7 +146,7 @@ public sealed class UpdateService
         var expected = line.Split(' ', StringSplitOptions.RemoveEmptyEntries)[0].Trim();
 
         await using var fs = File.OpenRead(file);
-        var actual = Convert.ToHexString(await SHA512.HashDataAsync(fs, ct).ConfigureAwait(false));
+        var actual = await Hashing.Sha512HexAsync(fs, ct).ConfigureAwait(false);
         await fs.DisposeAsync().ConfigureAwait(false);
 
         if (!actual.Equals(expected, StringComparison.OrdinalIgnoreCase))

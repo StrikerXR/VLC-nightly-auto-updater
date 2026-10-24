@@ -1,11 +1,21 @@
-; Version and CPU type are passed in by the build (/DMyAppVersion=2.2.0 /DMyArch=arm64).
+; Version and CPU type are passed in by the build (/DMyAppVersion=2.3.0 /DMyArch=arm64).
 ; Single source for the version: the VERSION file (MAJOR.MINOR.PATCH). MyArch is x64 or arm64.
-; Requires Windows 11 25H2 (build 26200) or newer. 64-bit and ARM64 only.
+; Modern edition: Windows 10 1809+ (tested on Windows 11 26H2). Legacy edition (/DMyEdition=legacy): Windows 7 SP1+, x64 only.
 #ifndef MyAppVersion
-  #define MyAppVersion "2.2.0"
+  #define MyAppVersion "2.3.0"
 #endif
 #ifndef MyArch
   #define MyArch "x64"
+#endif
+#ifndef MyEdition
+  #define MyEdition "modern"
+#endif
+#if MyEdition == "legacy"
+  #define MyEditionSuffix "-legacy"
+  #define MyPublishDir "..\publish-legacy"
+#else
+  #define MyEditionSuffix ""
+  #define MyPublishDir "..\publish"
 #endif
 #define MyAppName "VLC Nightly Updater"
 #define MyAppExe "VlcNightlyUpdater.exe"
@@ -13,7 +23,11 @@
 
 [Setup]
 ; Keep this GUID forever: it's how a newer installer recognises (and updates) an older install.
+#if MyEdition == "legacy"
+AppId={{B3F1C2A4-7D5E-4A9B-9C21-5E8F0A6D1B78}
+#else
 AppId={{B3F1C2A4-7D5E-4A9B-9C21-5E8F0A6D1B77}
+#endif
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
@@ -41,8 +55,12 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 #define MyArchLabel "64-bit"
 #endif
-; Windows 11 25H2 = build 26200
-MinVersion=10.0.26200
+#if MyEdition == "legacy"
+MinVersion=6.1sp1
+#else
+; Windows 10 1809 = build 17763
+MinVersion=10.0.17763
+#endif
 
 ; If the updater is open, close it for the user instead of failing
 CloseApplications=yes
@@ -50,7 +68,7 @@ RestartApplications=no
 
 OutputDir=..\dist
 ; The -x64/-arm64 suffix is how the in-app self-updater finds the right file in a GitHub Release.
-OutputBaseFilename=VlcNightlyUpdater-Setup-{#MyAppVersion}-{#MyArch}
+OutputBaseFilename=VlcNightlyUpdater-Setup-{#MyAppVersion}-{#MyArch}{#MyEditionSuffix}
 SetupIconFile=..\VlcNightlyUpdater\Assets\app.ico
 UninstallDisplayIcon={app}\{#MyAppExe}
 Compression=lzma2/ultra64
@@ -78,7 +96,7 @@ DisableWelcomePage=no
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
-WindowsVersionNotSupported=VLC Nightly Updater needs Windows 11 version 25H2 or newer.%n%nPlease update Windows and run this setup again.
+WindowsVersionNotSupported=VLC Nightly Updater needs Windows 10 (1809) or newer. On Windows 7/8 use the Legacy setup.
 ExitSetupTitle=Cancel setup
 
 [InstallDelete]
@@ -93,7 +111,7 @@ Type: filesandordirs; Name: "{app}"
 Type: files; Name: "{localappdata}\CrashDumps\VlcNightlyUpdater.exe.*.dmp"
 
 [Files]
-Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#MyPublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 ; Start Menu only. No desktop icon, no startup entry, no services. (The optional background check, off by default,
@@ -182,7 +200,7 @@ begin
            '    Only runs when you open it. Background update checks are off unless you turn them on.' + #13#10 + #13#10 +
            '    Installs just for you. No admin rights needed.' + #13#10 + #13#10 +
            '    Never touches your VLC settings.' + #13#10 + #13#10 +
-           '    Built for {#MyArchLabel} Windows 11.' + #13#10 + #13#10 + #13#10 +
+           '    Built for {#MyArchLabel} Windows.' + #13#10 + #13#10 + #13#10 +
            'Setup takes a few seconds.';
        end;
     1: begin
