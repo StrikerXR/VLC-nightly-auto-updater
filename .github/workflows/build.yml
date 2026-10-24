@@ -72,8 +72,42 @@ jobs:
           name: VlcNightlyUpdater-Setup-${{ env.APP_VERSION }}-${{ matrix.arch }}
           path: dist/VlcNightlyUpdater-Setup-${{ env.APP_VERSION }}-${{ matrix.arch }}.exe
 
+  build-legacy:
+    needs: version
+    runs-on: windows-latest
+    continue-on-error: true   # optional edition: a failure here never blocks the main release
+    env:
+      APP_VERSION: ${{ needs.version.outputs.app }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Publish Legacy app (.NET 6, self-contained, win-x64)
+        run: >
+          dotnet publish VlcNightlyUpdater.Legacy/VlcNightlyUpdater.Legacy.csproj
+          -c Release -r win-x64 -p:Version=${{ env.APP_VERSION }} -o publish-legacy
+
+      - name: Ensure dist directory exists
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force dist | Out-Null
+
+      - name: Build Legacy installer
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
+        with:
+          path: installer/installer.iss
+          options: /O+ /DMyAppVersion="${{ env.APP_VERSION }}" /DMyArch="x64" /DMyEdition="legacy"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: VlcNightlyUpdater-Setup-${{ env.APP_VERSION }}-x64-legacy
+          path: dist/VlcNightlyUpdater-Setup-${{ env.APP_VERSION }}-x64-legacy.exe
+
   release:
-    needs: [version, build]
+    needs: [version, build, build-legacy]
+    if: ${{ !cancelled() && needs.build.result != 'failure' }}
     runs-on: ubuntu-26.04
     env:
       APP_VERSION: ${{ needs.version.outputs.app }}
