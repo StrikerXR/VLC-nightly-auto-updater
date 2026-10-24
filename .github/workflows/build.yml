@@ -5,11 +5,9 @@ on:
 
 permissions:
   contents: write    # create the GitHub Release
-  actions: read      # download the build artifacts in the release job
+  actions: read      # download build artifacts
 
 jobs:
-  # One version for everything: the full MAJOR.MINOR.PATCH from the VERSION file (e.g. 2.1.0).
-  # Bump VERSION to release a new version; an installed 2.0.14 sees 2.1.0 as newer and updates itself.
   version:
     runs-on: ubuntu-26.04
     outputs:
@@ -26,11 +24,9 @@ jobs:
           echo "app=$ver" >> "$GITHUB_OUTPUT"
           echo "Building VLC Nightly Updater v$ver"
 
-  # The updater ships for 64-bit and ARM64 Windows 11 (25H2+). ARM64 is best-effort: if it fails, x64 still releases.
   build:
     needs: version
     runs-on: windows-latest
-    # x64 is primary. A failed ARM64 build must not fail the run or block the release.
     continue-on-error: ${{ matrix.experimental == true }}
     strategy:
       fail-fast: false
@@ -47,9 +43,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Setup .NET with NuGet caching
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: '**/VlcNightlyUpdater.csproj'
 
       - name: Publish app (self-contained, win-${{ matrix.arch }})
         run: >
@@ -57,48 +56,22 @@ jobs:
           -c Release -r win-${{ matrix.arch }} -p:Platform=${{ matrix.platform }}
           -p:Version=${{ env.APP_VERSION }} -o publish
 
-      # Use whatever Inno Setup the runner already has. No version pinning.
-      - name: Locate Inno Setup
+      - name: Ensure dist directory exists
         shell: pwsh
-        run: |
-          $candidates = @(
-            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-            "${env:ProgramFiles}\Inno Setup 6\ISCC.exe",
-            "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
-            "${env:ProgramFiles}\Inno Setup 7\ISCC.exe",
-            "${env:LOCALAPPDATA}\Programs\Inno Setup 6\ISCC.exe",
-            "${env:LOCALAPPDATA}\Programs\Inno Setup 7\ISCC.exe"
-          )
-          $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-          if (-not $iscc) {
-            $cmd = Get-Command ISCC.exe -ErrorAction SilentlyContinue
-            if ($cmd) { $iscc = $cmd.Source }
-          }
-          if (-not $iscc) {
-            Write-Host "Inno Setup not found on the runner, installing it with Chocolatey"
-            choco install innosetup -y --no-progress
-            $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-          }
-          if (-not $iscc) { throw "ISCC.exe not found" }
-          Write-Host "Using $iscc"
-          "ISCC_PATH=$iscc" >> $env:GITHUB_ENV
+        run: New-Item -ItemType Directory -Force dist | Out-Null
 
+      # Dedicated Inno Setup compilation action
       - name: Build installer wizard (${{ matrix.arch }})
-        shell: pwsh
-        run: |
-          if (-not (Test-Path publish\VlcNightlyUpdater.exe)) { throw "publish\VlcNightlyUpdater.exe is missing" }
-          Write-Host "Using $env:ISCC_PATH"
-          New-Item -ItemType Directory -Force dist | Out-Null
-          & $env:ISCC_PATH "/DMyAppVersion=$env:APP_VERSION" "/DMyArch=${{ matrix.arch }}" installer\installer.iss
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
+        with:
+          path: installer/installer.iss
+          options: /O+ /DMyAppVersion="${{ env.APP_VERSION }}" /DMyArch="${{ matrix.arch }}"
 
-      # GitHub wraps artifacts in a .zip, so each downloads as a zip containing ONLY that setup .exe
       - uses: actions/upload-artifact@v7
         with:
           name: VlcNightlyUpdater-Setup-${{ env.APP_VERSION }}-${{ matrix.arch }}
           path: dist/VlcNightlyUpdater-Setup-${{ env.APP_VERSION }}-${{ matrix.arch }}.exe
 
-  # Runs once, after the installers exist (x64 required, ARM64 if it built), so the in-app self-updater never sees a half-uploaded release.
   release:
     needs: [version, build]
     runs-on: ubuntu-26.04
@@ -107,17 +80,20 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
-      - name: Collect installers
+      - name: Download Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: VlcNightlyUpdater-Setup-*
+          path: dist
+          merge-multiple: true
+
+      - name: Validate installers
         run: |
-          mkdir -p dl dist
-          gh run download "${{ github.run_id }}" --pattern 'VlcNightlyUpdater-Setup-*' --dir dl
-          find dl -name 'VlcNightlyUpdater-Setup-*.exe' -exec mv {} dist/ \;
           ls -l dist
           ls dist/*-x64.exe > /dev/null 2>&1 || { echo "The x64 installer is missing, refusing to release"; exit 1; }
           ls dist/*-arm64.exe > /dev/null 2>&1 || echo "::warning::ARM64 installer missing, releasing x64 only"
 
-      # The in-app self-updater refuses to install anything it can't verify against this file.
-      - name: Checksums
+      - name: Generate Checksums
         run: |
           cd dist
           sha256sum VlcNightlyUpdater-Setup-*.exe > SHA256SUMS.txt
@@ -128,8 +104,15 @@ jobs:
           tag="v$APP_VERSION"
           files=(dist/VlcNightlyUpdater-Setup-*.exe dist/SHA256SUMS.txt)
           if gh release view "$tag" > /dev/null 2>&1; then
-            gh release upload "$tag" "${files[@]}" --clobber        # re-run of the same version
+            gh release upload "$tag" "${files[@]}" --clobber
           else
             gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" \
               --title "VLC Nightly Updater v$APP_VERSION" --generate-notes --latest
           fi
+
+      - name: Output Step Summary
+        run: |
+          echo "### 🚀 Released VLC Nightly Updater v$APP_VERSION" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          cat dist/SHA256SUMS.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
