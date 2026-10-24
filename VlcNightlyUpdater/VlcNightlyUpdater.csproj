@@ -7,7 +7,7 @@
     <RootNamespace>VlcNightlyUpdater</RootNamespace>
     <AssemblyName>VlcNightlyUpdater</AssemblyName>
     <Product>VLC Nightly Updater</Product>
-    <Version Condition="'$(Version)' == ''">2.3.0</Version>
+    <Version Condition="'$(Version)' == ''">2.3.1</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
