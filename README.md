@@ -8,6 +8,12 @@
 ![Windows](https://img.shields.io/badge/Windows-7%20%E2%80%93%2011-0078d4)
 ![Arch](https://img.shields.io/badge/CPU-x64%20%7C%20ARM64-555)
 
+<br/>
+
+| Modern Edition (WinUI 3) | Legacy Edition (WinForms) |
+| :-: | :-: |
+| <img src="https://github.com/user-attachments/assets/8582e75e-d96f-437a-966f-703f5e6e0d00" width="380" alt="VLC Nightly Updater - Modern Edition UI (WinUI 3)" /> | <img src="docs/legacy.png" width="380" alt="VLC Nightly Updater - Legacy Edition UI (WinForms)" /> |
+
 </div>
 
 Open it and it checks VideoLAN's nightly channel for your CPU type. If there's a newer build, it downloads the
@@ -15,6 +21,7 @@ installer, verifies its SHA-512, and installs it silently over your existing VLC
 (`%APPDATA%\vlc`) are never touched.
 
 **Nothing runs in the background by default**: no startup entry, no services, no scheduled tasks.
+
 
 ## Download
 
