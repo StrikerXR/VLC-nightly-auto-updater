@@ -65,6 +65,7 @@ public sealed partial class MainWindow : Window
         SelfToggle.IsOn = _state.AutoUpdateSelf;
         BackgroundToggle.IsOn = _state.BackgroundCheck;
         AiToggle.IsOn = _state.AiSummaryEnabled;
+        CacheToggle.IsOn = _state.CacheInstallers;
         AiModelBox.Text = string.IsNullOrWhiteSpace(_state.GeminiModel) ? AiSummaryService.DefaultModel : _state.GeminiModel;
         if (AiSummaryService.Unprotect(_state.GeminiKeyProtected) is { } k) AiKeyBox.Password = k;
         PauseDate.MinDate = new DateTimeOffset(DateTime.Today.AddDays(1));
@@ -75,6 +76,7 @@ public sealed partial class MainWindow : Window
         _loadingUi = false;
         RefreshAiPanel();
         RefreshPauseUi();
+        RefreshCacheVisibility();
         BackgroundLast.Text = _state.LastBackgroundRun is { } lr ? $"Last background check: {lr}" : "No background check has run yet.";
         SyncBackgroundCheck();
 
@@ -280,8 +282,10 @@ public sealed partial class MainWindow : Window
     private void RefreshActions()
     {
         var update = _pending is not null;
-        PrimaryText.Text = update ? (_state.OnStable ? "Back to nightly" : "Update now") : "Check again";
-        PrimaryIcon.Glyph = update ? "\uE896" : "\uE72C";
+        var paused = _state.IsPaused && !_state.OnStable;
+        PrimaryText.Text = paused ? "Paused" : update ? (_state.OnStable ? "Back to nightly" : "Update now") : "Check again";
+        PrimaryIcon.Glyph = paused ? "\uE769" : update ? "\uE896" : "\uE72C";
+        PrimaryButton.IsEnabled = !_busy && !paused;
         UpdateBadge.Visibility = update && !_state.OnStable ? Visibility.Visible : Visibility.Collapsed;
         GoStableButton.Visibility = _state.OnStable ? Visibility.Collapsed : Visibility.Visible;
         RefreshChangesButton();
@@ -302,7 +306,7 @@ public sealed partial class MainWindow : Window
         BuildPicker.ItemsSource = _folders.Take(15).Select(f =>
         {
             var label = Pretty(f) is { Length: > 0 } p ? $"{f}   \u00B7   {p}" : f;
-            if (InstallerCache.Has(f, _target)) label += "   \u00B7   cached";
+            if (_state.CacheInstallers && InstallerCache.Has(f, _target)) label += "   \u00B7   cached";
             return new BuildItem(f, label);
         }).ToList();
 
@@ -371,7 +375,7 @@ public sealed partial class MainWindow : Window
 
     private void SetButtons(bool enabled)
     {
-        PrimaryButton.IsEnabled = enabled;
+        PrimaryButton.IsEnabled = enabled && !(_state.IsPaused && !_state.OnStable);
         BuildPicker.IsEnabled = enabled;
         ArchPicker.IsEnabled = enabled;
         SelfUpdateButton.IsEnabled = enabled;
@@ -438,6 +442,20 @@ public sealed partial class MainWindow : Window
         _state.AutoUpdateSelf = SelfToggle.IsOn;
         StateStore.Save(_state);
     }
+
+    private void CacheToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loadingUi) return;
+        _state.CacheInstallers = CacheToggle.IsOn;
+        StateStore.Save(_state);
+        if (!CacheToggle.IsOn) InstallerCache.Clear(); // turning it off also frees the disk space
+        RefreshCacheVisibility();
+        RefreshCacheText();
+        FillBuildPicker();
+    }
+
+    private void RefreshCacheVisibility() =>
+        CachePanel.Visibility = _state.CacheInstallers ? Visibility.Visible : Visibility.Collapsed;
 
     private async void ArchPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -550,9 +568,9 @@ public sealed partial class MainWindow : Window
     {
         _pending = null;
 
-        if (Environment.OSVersion.Version.Build < 26200)
+        if (Environment.OSVersion.Version.Build < 17763)
         {
-            SetStatus("Windows 11 version 25H2 or newer required", "This updater doesn't support older Windows. Update Windows and try again.", Phase.Bad);
+            SetStatus("Windows 10 or newer required", "This version needs Windows 10 (1809) or newer. Windows 7/8 users: install the Legacy edition from the Releases page.", Phase.Bad);
             return;
         }
 
@@ -560,6 +578,14 @@ public sealed partial class MainWindow : Window
 
         // 1) This updater first. If it replaced itself, this process is exiting.
         if (await SelfUpdateCheckAsync()) return;
+
+        // Paused on purpose: don't contact VideoLAN at all until the pause ends or is cleared.
+        if (_state.IsPaused && !_state.OnStable)
+        {
+            SetStatus($"Updates paused until {_state.PausedUntil:MMM d}",
+                "No checks or installs until then. Clear the pause in Options to resume.", Phase.Warn);
+            return;
+        }
 
         // 2) Then VLC.
         var (vlc, target) = ResolveTarget();
@@ -617,14 +643,6 @@ public sealed partial class MainWindow : Window
             _pending = latest;
             SetStatus("Switch VLC build?",
                 $"{vlc!.Arch!.Value.Label()}  \u2192  {target.Label()}  ({latest.Folder})", Phase.Warn);
-            return;
-        }
-
-        if (_state.IsPaused)
-        {
-            _pending = latest;
-            SetStatus($"Updates paused until {_state.PausedUntil:MMM d}",
-                $"{_state.InstalledBuild ?? "Not installed"}  \u2192  {latest.Folder}. Press Update now to install anyway.", Phase.Warn);
             return;
         }
 
@@ -778,7 +796,8 @@ public sealed partial class MainWindow : Window
         _state.StableVersion = null;
         StateStore.Save(_state);
 
-        InstallerCache.Prune(build.Arch, protect: installer); // keep the last few for offline rollback
+        if (_state.CacheInstallers) InstallerCache.Prune(build.Arch, protect: installer); // keep the last few for offline rollback
+        else InstallerCache.Delete(installer);                                           // caching is off: don't keep it
         FillBuildPicker();
         RefreshCacheText();
         SetTiles(build.Folder, null, actualArch);
@@ -990,7 +1009,6 @@ public sealed partial class MainWindow : Window
             var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
             head.Children.Add(new FontIcon { Glyph = "\uE945", FontSize = 14, Foreground = new SolidColorBrush(Orange) });
             head.Children.Add(new TextBlock { Text = "AI summary", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            head.Children.Add(new TextBlock { Text = "experimental", Style = caption, Opacity = 0.6, VerticalAlignment = VerticalAlignment.Center });
 
             var inner = new StackPanel { Spacing = 8 };
             inner.Children.Add(head);
@@ -1073,20 +1091,25 @@ public sealed partial class MainWindow : Window
                 Style = caption, Opacity = 0.6, TextWrapping = TextWrapping.Wrap
             });
 
-        root.Children.Add(new Expander
+        // A plain toggle instead of an Expander: no height animation inside the dialog, so nothing flashes or jumps.
+        var commitsBox = new ScrollViewer { MaxHeight = 260, Content = list, Padding = new Thickness(0, 0, 12, 0),
+            Visibility = useAi ? Visibility.Collapsed : Visibility.Visible };
+        var toggle = new HyperlinkButton { Padding = new Thickness(0, 4, 0, 4) };
+        void SetToggleText() => toggle.Content = (commitsBox.Visibility == Visibility.Visible ? "\u25BE  Hide" : "\u25B8  Show") + $" raw commits ({log.Total})";
+        SetToggleText();
+        toggle.Click += (_, _) =>
         {
-            Header = $"Raw commits ({log.Total})",
-            IsExpanded = !useAi, // with a summary on top, keep the list tucked away until asked for
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Content = new ScrollViewer { MaxHeight = 280, Content = list, Padding = new Thickness(0, 0, 12, 0) }
-        });
+            commitsBox.Visibility = commitsBox.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+            SetToggleText();
+        };
+        root.Children.Add(toggle);
+        root.Children.Add(commitsBox);
 
         var dialog = new ContentDialog
         {
             XamlRoot = Root.XamlRoot,
             Title = range.Label,
-            Content = new ScrollViewer { MaxHeight = 520, Content = root, Padding = new Thickness(0, 0, 12, 0) },
+            Content = new ScrollViewer { Height = 480, Content = root, Padding = new Thickness(0, 0, 12, 0) },
             PrimaryButtonText = "Open on GitLab",
             CloseButtonText = "Close",
             DefaultButton = ContentDialogButton.Close
@@ -1116,11 +1139,12 @@ public sealed partial class MainWindow : Window
         StateStore.Save(_state);
         RefreshPauseUi();
         if (_busy) return;
-        // Re-evaluate the status line so it matches the new setting without another network round trip.
-        if (_pending is { } p && !_state.OnStable)
-            SetStatus(_state.IsPaused ? $"Updates paused until {_state.PausedUntil:MMM d}" : "Update available",
-                _state.IsPaused ? $"{_state.InstalledBuild ?? "Not installed"}  \u2192  {p.Folder}. Press Update now to install anyway."
-                                : $"{_state.InstalledBuild ?? "Not installed"}  \u2192  {p.Folder}", Phase.Warn);
+        RefreshActions();
+        if (_state.IsPaused)
+            SetStatus($"Updates paused until {_state.PausedUntil:MMM d}",
+                "No checks or installs until then. Clear the pause in Options to resume.", Phase.Warn);
+        else
+            _ = RunGuardedAsync(CheckFlowAsync); // pause ended: look for updates right away
     }
 
     private void PausePreset_Click(object sender, RoutedEventArgs e)
@@ -1131,7 +1155,7 @@ public sealed partial class MainWindow : Window
 
     private void PauseClear_Click(object sender, RoutedEventArgs e) => PauseDate.Date = null;
 
-    // ---------- experimental AI summary ----------
+    // ---------- AI summary ----------
 
     private void RefreshAiPanel()
     {

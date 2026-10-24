@@ -2,11 +2,12 @@
     x:Class="VlcNightlyUpdater.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:VlcNightlyUpdater"
     Title="VLC Nightly Updater">
 
     <Window.SystemBackdrop>
-        <!-- Mica Alt: the stronger, tab-style tint -->
-        <MicaBackdrop Kind="BaseAlt" />
+        <!-- Mica Alt that keeps its colours when the window loses focus -->
+        <local:AlwaysActiveMicaBackdrop />
     </Window.SystemBackdrop>
 
     <Grid x:Name="Root">
@@ -281,7 +282,12 @@
                                         IsEnabled="False" Click="InstallSelectedButton_Click" />
                             </Grid>
 
-                            <Grid ColumnSpacing="8">
+                            <Grid>
+                                <TextBlock Text="Keep installers for offline rollback" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,64,0" />
+                                <ToggleSwitch x:Name="CacheToggle" HorizontalAlignment="Right" MinWidth="0"
+                                              OnContent="" OffContent="" Toggled="CacheToggle_Toggled" />
+                            </Grid>
+                            <Grid x:Name="CachePanel" ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -315,9 +321,6 @@
                             <StackPanel Orientation="Horizontal" Spacing="10" Padding="0,2">
                             <FontIcon Glyph="&#xE945;" FontSize="15" />
                             <TextBlock Text="AI change summary" VerticalAlignment="Center" />
-                            <Border Background="#33FF8800" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
-                                <TextBlock Text="EXPERIMENTAL" FontSize="10" FontWeight="SemiBold" Foreground="#FFFF8800" />
-                            </Border>
                         </StackPanel>
                         </Expander.Header>
                         <StackPanel Spacing="10">

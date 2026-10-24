@@ -54,7 +54,7 @@ public static class InstallerCache
             if (!File.Exists(exe) || !File.Exists(Sidecar(exe))) return false;
             var expected = (await File.ReadAllTextAsync(Sidecar(exe), ct).ConfigureAwait(false)).Trim();
             await using var fs = File.OpenRead(exe);
-            var actual = Convert.ToHexString(await SHA512.HashDataAsync(fs, ct).ConfigureAwait(false));
+            var actual = await Hashing.Sha512HexAsync(fs, ct).ConfigureAwait(false);
             return actual.Equals(expected, StringComparison.OrdinalIgnoreCase);
         }
         catch (OperationCanceledException) { throw; }

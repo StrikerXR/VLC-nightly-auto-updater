@@ -1,103 +1,137 @@
+<div align="center">
+
 # VLC Nightly Updater
 
-Small WinUI 3 app for **Windows 11 25H2 or newer**, built for **64-bit and ARM64** only. Open it and it
-checks VideoLAN's nightly channel for your CPU type; if there's a newer build than the one it last recorded, it
-downloads the `.exe`, verifies SHA512, and installs it silently (`/S`) over your existing VLC. `%APPDATA%\vlc` is
-never touched (no uninstall step).
+**Keep VLC's nightly builds fresh with one click, or none.**
 
-**Nothing runs in the background by default**: no startup entry, no services, no scheduled tasks. There is one
-optional exception, described under "Background update checks", and it is off until you turn it on.
+[![Release](https://img.shields.io/github/v/release/StrikerXR/VLC-nightly-auto-updater?color=ff8800)](https://github.com/StrikerXR/VLC-nightly-auto-updater/releases/latest)
+![Windows](https://img.shields.io/badge/Windows-7%20%E2%80%93%2011-0078d4)
+![Arch](https://img.shields.io/badge/CPU-x64%20%7C%20ARM64-555)
+
+</div>
+
+Open it and it checks VideoLAN's nightly channel for your CPU type. If there's a newer build, it downloads the
+installer, verifies its SHA-512, and installs it silently over your existing VLC. Your VLC settings
+(`%APPDATA%\vlc`) are never touched.
+
+**Nothing runs in the background by default**: no startup entry, no services, no scheduled tasks.
+
+## Download
+
+Grab the setup from the [latest release](https://github.com/StrikerXR/VLC-nightly-auto-updater/releases/latest):
+
+| Your Windows | Download |
+|---|---|
+| Windows 10 (1809) or newer, 64-bit | `VlcNightlyUpdater-Setup-X.Y.Z-x64.exe` |
+| Windows 10/11 on ARM64 | `VlcNightlyUpdater-Setup-X.Y.Z-arm64.exe` |
+| Windows 7 SP1, 8, 8.1 (64-bit) | `VlcNightlyUpdater-Setup-X.Y.Z-x64-legacy.exe` |
+
+Per-user install, no admin rights needed. Verify downloads against `SHA256SUMS.txt` in the release.
 
 ## Features
-- **Auto-update on open** (or switch to a manual "Update now" button)
-- **Updates itself** from this repo's GitHub Releases (see below)
-- **Optional background update checks** (off by default): a notification when a new nightly is out
-- **Santa hat in December**: the window/taskbar icon gets a Christmas version for the month of December
-- **64-bit and ARM64**: the updater is built for both, and it manages whichever VLC you have (32-bit VLC is not supported)
-- **Resilient downloads**: resumes after a dropped connection or a stall (HTTP Range), retries with backoff,
-  shows speed and time left, has a Cancel button, and a half-finished download resumes next time
-- **What's new**: lists the VLC commits between your build and the latest, and what your last update brought
-  (from code.videolan.org; click a commit to open it)
-- **Smarter install flow**: downloads while VLC keeps running, closes VLC only right before installing
-  (gently, force-close only if you agree), reopens it afterwards, retries a failed install once, checks free disk
-  space, and confirms vlc.exe really landed as the right architecture
-- **Offline rollback**: the last 3 verified installers are cached; cached builds are marked in the picker
-- First run with VLC installed: assumes you're on the latest and records it
-- Installed / latest build tiles with readable dates and CPU type
-- Install any of the 15 most recent builds (rollback or reinstall)
-- Optional: launch VLC after updating, close the updater after updating
-- One-click button to open the VLC settings folder
 
-State + options: `%LOCALAPPDATA%\VlcNightlyUpdater\state.json`. Cached installers: `...\VlcNightlyUpdater\cache\<arch>`.
+- **Auto-update on open**, or switch to a manual "Update now" button
+- **Resilient downloads**: resume after a dropped connection, retry with backoff, speed and time left, Cancel
+- **Safe installs**: SHA-512 verified, VLC closed only right before installing and reopened afterwards, one automatic retry
+- **What changed**: the VLC commits between your build and the latest, and what your last update brought
+- **Optional AI summary** (off by default): a 3-bullet plain-language summary of those commits using your own Gemini key
+- **Rollback**: install any of the 15 most recent builds; optionally keep the last 3 installers for offline use
+- **Pause updates** until a date you choose: no checks, no installs, no notifications
+- **Go back to stable**: installs the latest stable VLC and steps aside
+- **Optional background notifications** (off by default)
+- **Updates itself** from GitHub Releases (modern edition)
+- 64-bit and ARM64 VLC supported; a Santa hat on the icon in December
 
-## Background update checks (optional, off by default)
-Options > "Check for VLC updates in the background". It only works in the installed copy.
+## Windows support
 
-- **Off (default):** nothing is registered with Windows and nothing runs. Each time the app opens with the option off,
-  it also deletes any leftover task/keys, so the switch is always the source of truth.
-- **On:** the app creates one per-user scheduled task (`VlcNightlyUpdater Background Check`, no admin needed) that
-  starts `VlcNightlyUpdater.exe --background-check` at sign-in and every 6 hours. That run has no window: it asks
-  VideoLAN for the newest nightly for your CPU type, shows a Windows notification if it is newer than your installed
-  build (once per build), and exits. It **never installs anything**; click the notification to open the app.
-  It also adds two small per-user registry keys so Windows can show the notification and open the app when you click it
-  (`HKCU\Software\Classes\AppUserModelId\StrikerXR.VlcNightlyUpdater` and `HKCU\Software\Classes\vlcnightlyupdater`).
-- Turning it off, or uninstalling, removes the task and those keys.
+| Edition | Windows | UI |
+|---|---|---|
+| Modern | 10 (1809) and newer. Tested on Windows 11 26H2. | WinUI 3, Mica Alt |
+| Legacy | 7 SP1, 8, 8.1 (x64 only) | Plain WinForms on .NET 6 |
+
+WinUI 3 can't run on Windows 7/8, so the Legacy edition is a small separate app that shares the same update engine.
+It covers check, install, pause and the main options. It does not self-update and has no background notifications,
+rollback picker or "go back to stable" button. Windows 7 also needs SP1 and a TLS 1.2 capable update level.
+
+## Pause
+
+Pick a date (or a quick preset) under *Pause VLC updates*. While paused the updater makes **no** VLC checks, the main
+button reads "Paused" and is disabled, and background notifications stay quiet. Clear the pause to resume right away.
+
+## Options
+
+| Option | Default | What it does |
+|---|---|---|
+| Update automatically | on | Install as soon as the app opens |
+| Open VLC after updating | off | |
+| Reopen VLC if it was running | on | |
+| Keep installers for offline rollback | on | Off deletes each installer after use and clears the cache |
+| Keep this updater up to date | on | Self-update from GitHub Releases |
+| Background checks | off | A notification when a new nightly is out |
+| AI change summary | off | Needs your own Gemini API key |
+
+State lives in `%LOCALAPPDATA%\VlcNightlyUpdater\state.json`; cached installers in `...\cache\<arch>`.
+
+## AI change summary (optional)
+
+Off by default, and while off the app never contacts Google. Turn it on, paste your own
+[Gemini API key](https://aistudio.google.com/apikey) (stored encrypted with Windows DPAPI, current user only), and
+*What changed* shows a 3-bullet summary above the raw commits. Only public commit titles are sent: no paths, usernames
+or PC info. The model is editable; the default is `gemini-3.5-flash-lite`.
+
+## Background checks (optional)
+
+Options > *Check for VLC updates in the background*. When on, one per-user scheduled task
+(`VlcNightlyUpdater Background Check`, no admin) runs `VlcNightlyUpdater.exe --background-check` at sign-in and every
+6 hours. It has no window, shows a notification if a newer nightly exists (once per build), and **never installs
+anything**. It also adds two small per-user registry keys so the notification can open the app. Turning it off or
+uninstalling removes the task and keys.
 
 ## Architectures
-VLC publishes a separate nightly channel per CPU type, and the updater picks the right one:
 
-| VLC build | Channel (`https://artifacts.videolan.org/vlc/...`) |
-|-----------|-----------------------------------------------------|
-| 64-bit    | `nightly-win64/` |
-| ARM64     | `nightly-win64-arm-llvm/` |
+| VLC build | Channel (`artifacts.videolan.org/vlc/...`) |
+|---|---|
+| 64-bit | `nightly-win64/` |
+| ARM64 | `nightly-win64-arm-llvm/` |
 
-"Auto" (the default) matches whatever VLC you already have, detected from `vlc.exe` itself. Otherwise it uses
-your Windows CPU type. You can pick a different build in Options; switching architecture always asks first, even
-with auto-update on. If VideoLAN renames a channel, edit the `Channels` table in `Services/UpdateService.cs`.
+"Auto" matches the VLC you already have. Switching architecture always asks first. If VideoLAN renames a channel, edit
+the `Channels` table in `Services/UpdateService.cs`.
 
-The updater itself ships as two setups (`-x64`, `-arm64`). 64-bit is primary; the ARM64 build is best-effort, and
-if it fails in CI the release goes out with x64 only.
+## Uninstall
 
-## Self-update
-On open, the app asks `https://api.github.com/repos/StrikerXR/VLC-nightly-auto-updater/releases/latest`. If the tag
-is newer than the running version, it downloads the setup that matches **its own** CPU type, checks it against the
-release's `SHA256SUMS.txt`, runs it silently, and reopens itself. If the checksum file is missing, nothing is
-installed. It only self-updates the installed copy (never a build-folder or debugger run), and a failed self-update
-never blocks the VLC update. Turn it off in Options ("Keep this updater up to date automatically"), and you get
-an "Update now" banner instead.
+Removes the program, saved settings, cached installers, self-update downloads, the background task and registry keys.
+VLC and `%APPDATA%\vlc` are never touched.
 
-Updating from 1.x: 1.x can't self-update, so install a 2.0 setup once by hand. It upgrades the old install in place.
+## Build from source
 
-## What's new in 2.2
-- New gradient icon with a rounded arrow, Mica Alt window, and a reworked layout built from WinUI 3 Expanders,
-  ProgressRing/ProgressBar, InfoBadges and a CalendarDatePicker. Smoother animations; the status check mark is now drawn
-  precisely centred.
-- **Pause VLC updates** until a date you pick (no installs, no notifications). "Update now" still works.
-- **Go back to stable**: installs the latest stable VLC (SHA-256 checked). The updater then idles until you press *Back to nightly*.
-- Background notifications: the switch now works from any copy, sends a test notification when turned on, and shows
-  when the last background check ran and what it found.
-- Maximize is blocked everywhere (title-bar double-click used to still maximize).
-- **Experimental, off by default: AI change summary.** With the switch on and your own Gemini API key saved (encrypted with
-  Windows DPAPI), "What changed" shows a 3-bullet summary above the raw commits. With it off the app never contacts Google.
-  Only public commit titles are sent. The model name is editable (default `gemini-3.8-flash`).
+Requires the .NET 8 SDK on Windows.
 
-## Versioning (one version for everything)
-`VERSION` holds the full version (currently `2.2.0`) and that exact number is used for the app, the installers, the
-exe names (`VlcNightlyUpdater-Setup-2.2.0-x64.exe`), the git tag (`v2.2.0`) and the GitHub Release. An installed
-`2.0.14` sees `2.2.0` as newer and updates itself. To ship the next version, edit `VERSION` (e.g. `2.1.1`) and run
-the workflow. Re-running the workflow for the same version just replaces that release's files.
+```powershell
+# Modern edition
+dotnet publish VlcNightlyUpdater/VlcNightlyUpdater.csproj -c Release -r win-x64 -p:Platform=x64 -o publish
 
-## Releases / CI
-Running the **Build & Release** workflow (manually, from the Actions tab) runs a 2-way matrix (x64, arm64): publish, build the installer,
-upload. A final job waits for the builds (x64 is required, ARM64 is optional), writes `SHA256SUMS.txt`, and only then creates the Release, so the
-self-updater never sees a half-uploaded release. The installer is compiled with whatever Inno Setup the runner image ships (no pinning).
+# Legacy edition (Windows 7/8)
+dotnet publish VlcNightlyUpdater.Legacy/VlcNightlyUpdater.Legacy.csproj -c Release -r win-x64 -o publish-legacy
+```
 
-## Installer
-Dark, per-user (no admin), no folder/shortcut questions, Windows 11 25H2+ only. Running a newer installer over an older
-install says it's an **update** (`2.0.14 to 2.2.0`), replaces the program files cleanly, and keeps your
-settings. **Uninstalling removes everything** and asks nothing: the program files, saved settings and cached
-installers (`%LOCALAPPDATA%\VlcNightlyUpdater`), self-update downloads in `%TEMP%`, the background-check task and
-registry keys, and the Start menu entry. Your VLC settings (`%APPDATA%\vlc`) and VLC itself are never touched.
-The installer writes no setup log, so it leaves no file in `%TEMP%` either.
-Silent mode for scripts: `VlcNightlyUpdater-Setup-X.Y.Z-x64.exe /VERYSILENT` (add `/relaunch=1` to reopen the app
-afterwards, which is what self-update does).
+Installers are built with [Inno Setup](https://jrsoftware.org/isinfo.php): `installer/installer.iss`
+(`/DMyAppVersion=X.Y.Z /DMyArch=x64|arm64`, plus `/DMyEdition=legacy` for the Windows 7 setup).
+
+## Releasing
+
+`VERSION` holds the single version used for the app, installers, tag and Release. Edit it and run the
+**Build & Release** workflow from the Actions tab. The release job waits for the builds (x64 required, ARM64 and
+Legacy optional), writes `SHA256SUMS.txt`, and only then publishes, so self-update never sees a half-uploaded release.
+
+## What's new in 2.3.0
+
+- Default AI model is now `gemini-3.5-flash-lite`; the AI summary is no longer labelled experimental (still off by default). Better prompt: focuses on what users notice and skips build/CI noise.
+- Raw commits in *What changed* now show and hide instantly, so the dialog no longer flashes or resizes.
+- Works on Windows 10 (1809) and newer, plus a Legacy edition for Windows 7/8/8.1.
+- New option to turn off installer caching.
+- Pausing updates now really pauses: no checks, "Check again" is disabled until the pause ends.
+- Mica Alt keeps its colours when the window loses focus.
+
+## License
+
+See the repository for license details. VLC is a trademark of VideoLAN; this project is not affiliated with VideoLAN.

@@ -7,13 +7,13 @@ using System.Text.RegularExpressions;
 namespace VlcNightlyUpdater.Services;
 
 /// <summary>
-/// EXPERIMENTAL, opt-in. Turns a list of VLC commit titles into three plain-language bullets using Google's Gemini API.
+/// Opt-in (off by default). Turns a list of VLC commit titles into three plain-language bullets using Google's Gemini API.
 /// This class is only reached when the user switched the feature on AND saved a key; with the switch off the app
 /// never makes a request to Google. Only public commit titles are sent (no paths, no usernames, no PC info).
 /// </summary>
 public static class AiSummaryService
 {
-    public const string DefaultModel = "gemini-3.8-flash";
+    public const string DefaultModel = "gemini-3.5-flash-lite";
 
     private const int MaxCommits = 200;
     private const int MaxChars = 14_000;
@@ -47,8 +47,16 @@ public static class AiSummaryService
         }
 
         var prompt =
-            "Summarize these VLC code commits into 3 bullet points in simple, non-technical terms for a regular user. " +
-            "Plain text only, one short sentence per bullet, each starting with \"- \". No intro, no outro." +
+            "You write release notes for everyday people who use the VLC media player. Below are the code commit titles " +
+            "between two VLC nightly builds.\n\n" +
+            "Write exactly 3 bullets, most important first. Rules:\n" +
+            "- Describe what the person will notice: playback, formats and codecs, speed, crashes, the interface, subtitles, streaming.\n" +
+            "- Group related commits into one bullet. Skip build-system, CI, translation, refactoring and test-only changes " +
+            "unless nothing else is left.\n" +
+            "- Plain words, no jargon or commit hashes, one short sentence per bullet, starting with \"- \".\n" +
+            "- Only state what the titles support. Never invent features or fixes.\n" +
+            "- No intro, no outro, no markdown other than the leading \"- \".\n" +
+            "- If the commits are all internal work, say so in a single bullet instead.\n" +
             (total > commits.Count ? $"\n(The list shows the newest {commits.Count} of {total} commits.)" : "") +
             "\n\nCommits:\n" + list;
 

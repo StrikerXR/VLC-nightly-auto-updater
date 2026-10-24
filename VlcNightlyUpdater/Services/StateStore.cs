@@ -58,12 +58,15 @@ public sealed class AppState
     public string? StableVersion { get; set; }
 
     /// <summary>
-    /// Experimental, OFF by default. While false the app never contacts Google. The key is stored encrypted with
+    /// OFF by default. While false the app never contacts Google. The key is stored encrypted with
     /// Windows DPAPI (current user only), never as plain text.
     /// </summary>
     public bool AiSummaryEnabled { get; set; }
+
+    /// <summary>Keep the last few verified installers for offline rollback. Turn off to delete each installer after use.</summary>
+    public bool CacheInstallers { get; set; } = true;
     public string? GeminiKeyProtected { get; set; }
-    public string GeminiModel { get; set; } = "gemini-3.8-flash";
+    public string GeminiModel { get; set; } = "gemini-3.5-flash-lite";
 }
 
 /// <summary>Plain JSON in %LOCALAPPDATA% (unpackaged apps can't use ApplicationData.LocalSettings).</summary>
