@@ -1,14 +1,28 @@
-; Version and CPU type are passed in by the build (/DMyAppVersion=2.3.0 /DMyArch=arm64).
+; Version and CPU type are passed in by the build (/DMyAppVersion=2.3.1 /DMyArch=arm64).
 ; Single source for the version: the VERSION file (MAJOR.MINOR.PATCH). MyArch is x64 or arm64.
 ; Modern edition: Windows 10 1809+ (tested on Windows 11 26H2). Legacy edition (/DMyEdition=legacy): Windows 7 SP1+, x64 only.
+; Values come from /D switches OR (more robust in CI, no quoting problems) from environment variables
+; VLCNU_VERSION, VLCNU_ARCH and VLCNU_EDITION.
 #ifndef MyAppVersion
-  #define MyAppVersion "2.3.0"
+  #define MyAppVersion GetEnv("VLCNU_VERSION")
+  #if MyAppVersion == ""
+    #undef MyAppVersion
+    #define MyAppVersion "2.3.1"
+  #endif
 #endif
 #ifndef MyArch
-  #define MyArch "x64"
+  #define MyArch GetEnv("VLCNU_ARCH")
+  #if MyArch == ""
+    #undef MyArch
+    #define MyArch "x64"
+  #endif
 #endif
 #ifndef MyEdition
-  #define MyEdition "modern"
+  #define MyEdition GetEnv("VLCNU_EDITION")
+  #if MyEdition == ""
+    #undef MyEdition
+    #define MyEdition "modern"
+  #endif
 #endif
 #if MyEdition == "legacy"
   #define MyEditionSuffix "-legacy"

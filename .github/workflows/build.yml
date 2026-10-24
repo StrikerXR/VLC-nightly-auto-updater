@@ -60,12 +60,17 @@ jobs:
         shell: pwsh
         run: New-Item -ItemType Directory -Force dist | Out-Null
 
-      # Dedicated Inno Setup compilation action
-      - name: Build installer wizard (${{ matrix.arch }})
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
-        with:
-          path: installer/installer.iss
-          options: /O+ /DMyAppVersion="${{ env.APP_VERSION }}" /DMyArch="${{ matrix.arch }}"
+      - name: Build installer
+        shell: pwsh
+        env:
+          VLCNU_VERSION: ${{ env.APP_VERSION }}
+          VLCNU_ARCH: ${{ matrix.arch }}
+          VLCNU_EDITION: modern
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          & $iscc installer/installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
 
       - uses: actions/upload-artifact@v7
         with:
@@ -94,11 +99,17 @@ jobs:
         shell: pwsh
         run: New-Item -ItemType Directory -Force dist | Out-Null
 
-      - name: Build Legacy installer
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
-        with:
-          path: installer/installer.iss
-          options: /O+ /DMyAppVersion="${{ env.APP_VERSION }}" /DMyArch="x64" /DMyEdition="legacy"
+      - name: Build installer
+        shell: pwsh
+        env:
+          VLCNU_VERSION: ${{ env.APP_VERSION }}
+          VLCNU_ARCH: x64
+          VLCNU_EDITION: legacy
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          & $iscc installer/installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
 
       - uses: actions/upload-artifact@v7
         with:

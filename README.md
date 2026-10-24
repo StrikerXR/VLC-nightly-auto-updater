@@ -123,6 +123,10 @@ Installers are built with [Inno Setup](https://jrsoftware.org/isinfo.php): `inst
 **Build & Release** workflow from the Actions tab. The release job waits for the builds (x64 required, ARM64 and
 Legacy optional), writes `SHA256SUMS.txt`, and only then publishes, so self-update never sees a half-uploaded release.
 
+## What's new in 2.3.1
+
+- Fixed the CI installer build: Inno Setup now gets its version, CPU type and edition from environment variables and is called directly, instead of through an action that mangled quoted `/D` options ("Invalid filename" on `OutputBaseFilename`).
+
 ## What's new in 2.3.0
 
 - Default AI model is now `gemini-3.5-flash-lite`; the AI summary is no longer labelled experimental (still off by default). Better prompt: focuses on what users notice and skips build/CI noise.
