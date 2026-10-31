@@ -1,6 +1,6 @@
 # VLC Nightly Updater
 
-Small WinUI 3 app for **Windows 11 25H2 or newer**, built for **64-bit and ARM64** only. Open it and it
+Small WinUI 3 app for **Windows 10 (1809 and newer) and Windows 11**, built for **64-bit and ARM64** only. Open it and it
 checks VideoLAN's nightly channel for your CPU type; if there's a newer build than the one it last recorded, it
 downloads the `.exe`, verifies SHA512, and installs it silently (`/S`) over your existing VLC. `%APPDATA%\vlc` is
 never touched (no uninstall step).
@@ -12,6 +12,7 @@ optional exception, described under "Background update checks", and it is off un
 - **Auto-update on open** (or switch to a manual "Update now" button)
 - **Updates itself** from this repo's GitHub Releases (see below)
 - **Optional background update checks** (off by default): a notification when a new nightly is out
+- **Windows 10 and 11**: Mica on Windows 11, an acrylic/plain backdrop on Windows 10, same app everywhere
 - **Santa hat in December**: the window/taskbar icon gets a Christmas version for the month of December
 - **64-bit and ARM64**: the updater is built for both, and it manages whichever VLC you have (32-bit VLC is not supported)
 - **Resilient downloads**: resumes after a dropped connection or a stall (HTTP Range), retries with backoff,
@@ -69,19 +70,31 @@ an "Update now" banner instead.
 Updating from 1.x: 1.x can't self-update, so install a 2.0 setup once by hand. It upgrades the old install in place.
 
 ## Versioning (one version for everything)
-`VERSION` holds the full version (currently `2.1.0`) and that exact number is used for the app, the installers, the
-exe names (`VlcNightlyUpdater-Setup-2.1.0-x64.exe`), the git tag (`v2.1.0`) and the GitHub Release. An installed
-`2.0.14` sees `2.1.0` as newer and updates itself. To ship the next version, edit `VERSION` (e.g. `2.1.1`) and run
+`VERSION` holds the full version (currently `3.0.0`) and that exact number is used for the app, the installers, the
+exe names (`VlcNightlyUpdater-Setup-3.0.0-x64.exe`), the git tag (`v3.0.0`) and the GitHub Release. An installed
+`2.x` sees `3.0.0` as newer and updates itself. To ship the next version, edit `VERSION` (e.g. `3.0.1`) and run
 the workflow. Re-running the workflow for the same version just replaces that release's files.
 
 ## Releases / CI
-Running the **Build & Release** workflow (manually, from the Actions tab) runs a 2-way matrix (x64, arm64): publish, build the installer,
-upload. A final job waits for the builds (x64 is required, ARM64 is optional), writes `SHA256SUMS.txt`, and only then creates the Release, so the
-self-updater never sees a half-uploaded release. The installer is compiled with whatever Inno Setup the runner image ships (no pinning).
+`.github/workflows/build.yml` does three things:
+
+- **Every push to `main` and every PR** builds both CPU types and smoke-tests the x64 installer (install, reinstall over
+  the top, uninstall, confirm nothing is left behind). Nothing is published.
+- **Run it manually** (Actions > Build & Release > Run workflow) to release. Options: publish or dry run, include ARM64,
+  pre-release, draft, and extra release notes.
+- **Safety checks along the way**: `VERSION` must be `MAJOR.MINOR.PATCH` and not older than the latest release; the
+  published exe's PE header must match the CPU type being built; the release job refuses to run without the x64 installer
+  (ARM64 stays best-effort); after publishing, the workflow downloads the release and checks every file against
+  `SHA256SUMS.txt`, the same way the in-app self-updater does.
+
+Other details: installers are built by whatever Inno Setup the runner ships (no pinning), NuGet packages are cached,
+build provenance is attested on public repos, each run writes a summary (versions, sizes, hashes, release link), and
+Dependabot keeps the Actions versions and NuGet packages current (Windows App SDK major/minor bumps stay manual, since
+they can change the minimum Windows version).
 
 ## Installer
-Dark, per-user (no admin), no folder/shortcut questions, Windows 11 25H2+ only. Running a newer installer over an older
-install says it's an **update** (`2.0.14 to 2.1.0`), replaces the program files cleanly, and keeps your
+Dark, per-user (no admin), no folder/shortcut questions, Windows 10 1809+ and Windows 11. Running a newer installer over an older
+install says it's an **update** (`2.1.0 to 3.0.0`), replaces the program files cleanly, and keeps your
 settings. **Uninstalling removes everything** and asks nothing: the program files, saved settings and cached
 installers (`%LOCALAPPDATA%\VlcNightlyUpdater`), self-update downloads in `%TEMP%`, the background-check task and
 registry keys, and the Start menu entry. Your VLC settings (`%APPDATA%\vlc`) and VLC itself are never touched.

@@ -137,9 +137,27 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(TitleBarArea);
 
-        var tb = AppWindow.TitleBar;
-        tb.ButtonBackgroundColor = Colors.Transparent;
-        tb.ButtonInactiveBackgroundColor = Colors.Transparent;
+        if (Microsoft.UI.Windowing.AppWindowTitleBar.IsCustomizationSupported())
+        {
+            var tb = AppWindow.TitleBar;
+            tb.ButtonBackgroundColor = Colors.Transparent;
+            tb.ButtonInactiveBackgroundColor = Colors.Transparent;
+        }
+
+        // Mica on Windows 11, acrylic where Mica isn't available (Windows 10), plain themed background otherwise.
+        try
+        {
+            if (Microsoft.UI.Composition.SystemBackdrops.MicaController.IsSupported())
+                SystemBackdrop = new MicaBackdrop();
+            else if (Microsoft.UI.Composition.SystemBackdrops.DesktopAcrylicController.IsSupported())
+                SystemBackdrop = new DesktopAcrylicBackdrop();
+            else
+                Root.Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
+        }
+        catch
+        {
+            Root.Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
+        }
 
         if (AppWindow.Presenter is OverlappedPresenter p)
         {
@@ -449,9 +467,9 @@ public sealed partial class MainWindow : Window
     {
         _pending = null;
 
-        if (Environment.OSVersion.Version.Build < 26200)
+        if (Environment.OSVersion.Version.Build < 17763)
         {
-            SetStatus("Windows 11 version 25H2 or newer required", "This updater doesn't support older Windows. Update Windows and try again.", Phase.Bad);
+            SetStatus("Windows 10 (version 1809) or newer required", "This updater doesn't support older Windows. Update Windows and try again.", Phase.Bad);
             return;
         }
 

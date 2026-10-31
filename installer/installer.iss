@@ -1,8 +1,8 @@
 ; Version and CPU type are passed in by the build (/DMyAppVersion=2.1.0 /DMyArch=arm64).
 ; Single source for the version: the VERSION file (MAJOR.MINOR.PATCH). MyArch is x64 or arm64.
-; Requires Windows 11 25H2 (build 26200) or newer. 64-bit and ARM64 only.
+; Requires Windows 10 1809 (build 17763) or newer, including Windows 11. 64-bit and ARM64 only.
 #ifndef MyAppVersion
-  #define MyAppVersion "2.1.0"
+  #define MyAppVersion "3.0.0"
 #endif
 #ifndef MyArch
   #define MyArch "x64"
@@ -41,8 +41,8 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 #define MyArchLabel "64-bit"
 #endif
-; Windows 11 25H2 = build 26200
-MinVersion=10.0.26200
+; Windows 10 1809 = build 17763 (minimum for the Windows App SDK)
+MinVersion=10.0.17763
 
 ; If the updater is open, close it for the user instead of failing
 CloseApplications=yes
@@ -78,7 +78,7 @@ DisableWelcomePage=no
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
-WindowsVersionNotSupported=VLC Nightly Updater needs Windows 11 version 25H2 or newer.%n%nPlease update Windows and run this setup again.
+WindowsVersionNotSupported=VLC Nightly Updater needs Windows 10 version 1809 or newer (or Windows 11).%n%nPlease update Windows and run this setup again.
 ExitSetupTitle=Cancel setup
 
 [InstallDelete]
@@ -149,15 +149,27 @@ begin
   L.Font.Color := Color;
 end;
 
+// Segoe UI Variable ships with Windows 11 (build 22000+). Older Windows keeps the default Segoe UI.
+function UseVariableFont(): Boolean;
+var
+  V: TWindowsVersion;
+begin
+  GetWindowsVersionEx(V);
+  Result := V.Build >= 22000;
+end;
+
 procedure InitializeWizard();
 begin
   Mode := DetectMode();
 
-  // Typography: the Windows 11 UI font, a big orange headline, softer body text.
-  WizardForm.Font.Name := 'Segoe UI Variable Text';
-  WizardForm.WelcomeLabel1.Font.Name := 'Segoe UI Variable Display';
-  WizardForm.FinishedHeadingLabel.Font.Name := 'Segoe UI Variable Display';
-  WizardForm.PageNameLabel.Font.Name := 'Segoe UI Variable Display';
+  // Typography: the Windows 11 UI font where it exists (Segoe UI Variable), Segoe UI on Windows 10.
+  if UseVariableFont() then
+  begin
+    WizardForm.Font.Name := 'Segoe UI Variable Text';
+    WizardForm.WelcomeLabel1.Font.Name := 'Segoe UI Variable Display';
+    WizardForm.FinishedHeadingLabel.Font.Name := 'Segoe UI Variable Display';
+    WizardForm.PageNameLabel.Font.Name := 'Segoe UI Variable Display';
+  end;
 
   StyleLabel(WizardForm.WelcomeLabel1, 20, True, Accent);
   WizardForm.WelcomeLabel1.Height := ScaleY(40);
@@ -182,7 +194,7 @@ begin
            '    Only runs when you open it. Background update checks are off unless you turn them on.' + #13#10 + #13#10 +
            '    Installs just for you. No admin rights needed.' + #13#10 + #13#10 +
            '    Never touches your VLC settings.' + #13#10 + #13#10 +
-           '    Built for {#MyArchLabel} Windows 11.' + #13#10 + #13#10 + #13#10 +
+           '    Built for {#MyArchLabel} Windows 10 and 11.' + #13#10 + #13#10 + #13#10 +
            'Setup takes a few seconds.';
        end;
     1: begin
