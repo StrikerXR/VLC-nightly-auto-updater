@@ -77,8 +77,9 @@ jobs:
           fi
 
           # Compare against the newest published release (none yet is fine).
-          latest=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>/dev/null || true)
+          latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)
           latest=${latest#v}
+          [[ "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || latest=""
           status=new
           if [[ -n "$latest" ]]; then
             if [[ "$ver" == "$latest" ]]; then
