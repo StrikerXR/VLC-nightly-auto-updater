@@ -61,7 +61,7 @@ jobs:
       matrix: ${{ steps.v.outputs.matrix }}
       arm64: ${{ steps.v.outputs.arm64 }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - id: v
         env:
@@ -145,14 +145,14 @@ jobs:
     env:
       APP_VERSION: ${{ needs.version.outputs.app }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 8.0.x
 
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~\.nuget\packages
           key: nuget-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('**/*.csproj') }}
@@ -321,7 +321,7 @@ jobs:
       - name: Attest build provenance
         if: ${{ github.event.repository.private == false }}
         continue-on-error: true
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: dist/VlcNightlyUpdater-Setup-*.exe
 
