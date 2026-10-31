@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: nuget
+    directory: /VlcNightlyUpdater
+    schedule:
+      interval: weekly
+    ignore:
+      # Windows App SDK upgrades can change the minimum Windows version; bump these by hand.
+      - dependency-name: "Microsoft.WindowsAppSDK"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
