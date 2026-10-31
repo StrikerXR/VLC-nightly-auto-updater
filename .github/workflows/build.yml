@@ -1,7 +1,7 @@
 name: Build & Release
 
-# Manual run  -> build, test, and (unless you untick "release") publish a GitHub Release.
-# Push / PR   -> build + test only. These never publish anything.
+# Manual only: Actions > Build & Release > Run workflow.
+# Untick "release" for a build-and-test dry run that publishes nothing.
 on:
   workflow_dispatch:
     inputs:
@@ -25,16 +25,11 @@ on:
         description: "Extra release notes shown above the auto-generated changelog (optional)"
         type: string
         default: ""
-  push:
-    branches: [main]
-    paths-ignore: ["**.md", "LICENSE*", ".github/dependabot.yml"]
-  pull_request:
-    paths-ignore: ["**.md", "LICENSE*", ".github/dependabot.yml"]
 
-# Releases queue up and are never cancelled half-way. Superseded push/PR builds are cancelled.
+# Runs queue up one at a time and are never cancelled half-way.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && 'release' || github.ref }}
-  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 # Least privilege by default; the jobs that need more ask for it themselves.
 permissions:
@@ -66,8 +61,8 @@ jobs:
       - id: v
         env:
           GH_TOKEN: ${{ github.token }}
-          WANT_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.release }}
-          WANT_ARM64: ${{ github.event_name != 'workflow_dispatch' || inputs.arm64 }}
+          WANT_RELEASE: ${{ inputs.release }}
+          WANT_ARM64: ${{ inputs.arm64 }}
         run: |
           set -euo pipefail
 
@@ -77,6 +72,7 @@ jobs:
           fi
 
           # Compare against the newest published release (none yet is fine).
+          # No release yet is fine: gh exits non-zero with an empty stdout, and anything that isn't a plain version is ignored.
           latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)
           latest=${latest#v}
           [[ "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || latest=""
@@ -279,12 +275,12 @@ jobs:
 
   # ---------------------------------------------------------------------------------------------
   # Runs once, after the installers exist (x64 required, ARM64 if it built), so the in-app
-  # self-updater never sees a half-uploaded release. Manual runs only.
+  # self-updater never sees a half-uploaded release.
   # ---------------------------------------------------------------------------------------------
   release:
     name: Publish release
     needs: [version, build]
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.release }}
+    if: ${{ inputs.release }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
