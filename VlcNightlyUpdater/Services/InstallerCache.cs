@@ -9,8 +9,8 @@ namespace VlcNightlyUpdater.Services;
 /// </summary>
 public static class InstallerCache
 {
-    public const int Keep = 3;
-    private const long MinFreeBytes = 400L * 1024 * 1024;
+    public const int Keep = AppConfig.CacheKeep;
+    private const long MinFreeBytes = AppConfig.MinFreeBytes;
 
     public static string Root => Path.Combine(StateStore.Dir, "cache");
     public static string DirFor(VlcArch arch) => Path.Combine(Root, arch.Key());

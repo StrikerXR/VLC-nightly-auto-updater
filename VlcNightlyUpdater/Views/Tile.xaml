@@ -1,0 +1,14 @@
+<UserControl
+    x:Class="VlcNightlyUpdater.Views.Tile"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- One small stat card: LABEL, big mono value, muted sub line. -->
+    <Border Style="{StaticResource VnuCard}" Padding="16,12">
+        <StackPanel Spacing="2">
+            <TextBlock x:Name="LabelText" Style="{StaticResource VnuLabel}" />
+            <TextBlock x:Name="ValueText" Style="{StaticResource VnuMono}" Text="—" />
+            <TextBlock x:Name="SubText" Style="{StaticResource VnuLabel}" TextWrapping="Wrap" />
+        </StackPanel>
+    </Border>
+</UserControl>

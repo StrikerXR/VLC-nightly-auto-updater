@@ -23,8 +23,8 @@ public readonly record struct DownloadProgress(long Received, long Total, double
 /// </summary>
 public static class Downloader
 {
-    public const int MaxAttempts = 6;
-    private static readonly TimeSpan StallTimeout = TimeSpan.FromSeconds(30);
+    private static int MaxAttempts => AppConfig.MaxDownloadAttempts;
+    private static TimeSpan StallTimeout => AppConfig.StallTimeout;
     private const int DiskFull = unchecked((int)0x80070070);
 
     public static async Task DownloadAsync(string url, string destPath, IProgress<DownloadProgress> progress, CancellationToken ct)

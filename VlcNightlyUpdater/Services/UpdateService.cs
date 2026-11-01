@@ -10,15 +10,9 @@ public enum InstallStage { UsingCache, Downloading, Verifying }
 
 public sealed class UpdateService
 {
-    private const string Root = "https://artifacts.videolan.org/vlc/";
-
-    // VLC publishes one nightly channel per architecture. Candidates are tried in order and the first one that
-    // actually lists builds wins.
-    private static readonly Dictionary<VlcArch, string[]> Channels = new()
-    {
-        [VlcArch.X64] = ["nightly-win64"],
-        [VlcArch.Arm64] = ["nightly-win64-arm-llvm"],
-    };
+    // Channel names live in AppConfig.Channels. Candidates are tried in order; the first that lists builds wins.
+    private const string Root = AppConfig.NightlyRoot;
+    private static IReadOnlyDictionary<VlcArch, string[]> Channels => AppConfig.Channels;
 
     private string? _baseUrl;
     private VlcArch _baseArch;
@@ -87,7 +81,7 @@ public sealed class UpdateService
     /// <summary>Newest build that actually has an .exe (the very newest may still be uploading).</summary>
     public async Task<BuildInfo> GetLatestAsync(IEnumerable<string> folders, CancellationToken ct)
     {
-        foreach (var folder in folders.Take(5))
+        foreach (var folder in folders.Take(AppConfig.LatestProbe))
         {
             var b = await ResolveAsync(folder, ct).ConfigureAwait(false);
             if (b is not null) return b;

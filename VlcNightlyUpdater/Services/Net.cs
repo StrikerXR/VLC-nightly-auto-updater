@@ -17,7 +17,7 @@ public static class Net
     private static HttpClient Create()
     {
         // Timeout covers "until headers arrive" for streamed downloads and the whole request for small pages.
-        var c = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        var c = new HttpClient { Timeout = AppConfig.HttpTimeout };
         c.DefaultRequestHeaders.UserAgent.ParseAdd($"VlcNightlyUpdater/{CurrentVersion}");
         return c;
     }

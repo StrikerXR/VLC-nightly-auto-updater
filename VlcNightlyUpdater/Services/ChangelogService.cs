@@ -6,7 +6,8 @@ namespace VlcNightlyUpdater.Services;
 public sealed record CommitInfo(string ShortId, string Title, string Author, DateTime? Date, string Url);
 
 /// <summary>Which two nightlies to compare. Hashes are optional; without them we fall back to commit dates.</summary>
-public sealed record ChangeRange(string FromFolder, string? FromHash, string ToFolder, string? ToHash, string Label);
+/// <param name="Pending">true = an update is waiting (installed -> latest); false = looking back at the last update.</param>
+public sealed record ChangeRange(string FromFolder, string? FromHash, string ToFolder, string? ToHash, string Label, bool Pending = false);
 
 public sealed record Changelog(
     IReadOnlyList<CommitInfo> Commits, int Total, string CompareUrl, bool Approximate);
@@ -14,10 +15,9 @@ public sealed record Changelog(
 /// <summary>Reads VLC's commit history from code.videolan.org (public GitLab API, no login needed).</summary>
 public static class ChangelogService
 {
-    private const string Project = "videolan%2Fvlc";
-    private const string Api = "https://code.videolan.org/api/v4/projects/" + Project + "/repository";
-    private const string Web = "https://code.videolan.org/videolan/vlc";
-    private const int MaxShown = 150;
+    private const string Api = AppConfig.GitLabApi;
+    private const string Web = AppConfig.GitLabWeb;
+    private const int MaxShown = AppConfig.ChangelogMaxShown;
 
     public static async Task<Changelog> GetAsync(ChangeRange r, CancellationToken ct)
     {

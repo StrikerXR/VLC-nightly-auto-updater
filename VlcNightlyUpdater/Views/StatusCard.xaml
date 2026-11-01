@@ -1,0 +1,43 @@
+<UserControl
+    x:Class="VlcNightlyUpdater.Views.StatusCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- The big "what is happening" card: icon, headline, detail line, progress bar, Cancel. -->
+    <Border Style="{StaticResource VnuCard}" Padding="20">
+        <Grid ColumnSpacing="16" RowSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Border x:Name="IconBadge" Width="52" Height="52" CornerRadius="26" VerticalAlignment="Top"
+                    Background="{StaticResource VnuPhaseWorkingTintBrush}">
+                <FontIcon x:Name="StatusIcon" Glyph="&#xE895;" FontSize="24"
+                          Foreground="{StaticResource VnuPhaseWorkingBrush}" />
+            </Border>
+
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                <TextBlock x:Name="TitleText" Style="{StaticResource SubtitleTextBlockStyle}"
+                           TextWrapping="Wrap" Text="Starting…" />
+                <TextBlock x:Name="DetailText" TextWrapping="Wrap" Visibility="Collapsed"
+                           Opacity="{StaticResource VnuMutedOpacity}" />
+            </StackPanel>
+
+            <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ProgressBar x:Name="Bar" VerticalAlignment="Center" Minimum="0" Maximum="100"
+                             Foreground="{StaticResource VnuBrandBrush}" IsIndeterminate="True" />
+                <Button x:Name="CancelButton" Grid.Column="1" Content="Cancel" Visibility="Collapsed"
+                        Click="CancelButton_Click" />
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

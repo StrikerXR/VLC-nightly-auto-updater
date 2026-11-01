@@ -8,7 +8,18 @@ never touched (no uninstall step).
 **Nothing runs in the background by default**: no startup entry, no services, no scheduled tasks. There is one
 optional exception, described under "Background update checks", and it is off until you turn it on.
 
+## For contributors and AI agents
+Start with [AGENTS.md](AGENTS.md): hard rules, a "change X → edit file Y" map, structure rules and the design language.
+The UI is split into small views in `VlcNightlyUpdater/Views/`, flows in `MainWindow.*.cs`, and all URLs/text/colors/icons
+each live in one file (`Config/`, `Theme/`). `python tools/make_icons.py` regenerates the app icons.
+
 ## Features
+- **Commits since your build**: the Changes tab lists the VLC commits between your build and the latest, loads by itself, and a
+  *Behind* tile shows how many commits you're missing
+- **Pre-releases for the updater** (Settings > Include pre-releases): checks GitHub's release list and takes whichever updater
+  version is newest, pre-release or not
+- **Simple settings**: update automatically, open VLC afterwards, keep the updater current, include pre-releases, notifications.
+  VLC is always reopened if it was running; the build picker shows only on ARM64 PCs
 - **Auto-update on open** (or switch to a manual "Update now" button)
 - **Updates itself** from this repo's GitHub Releases (see below)
 - **Optional background update checks** (off by default): a notification when a new nightly is out
@@ -25,14 +36,14 @@ optional exception, described under "Background update checks", and it is off un
 - **Offline rollback**: the last 3 verified installers are cached; cached builds are marked in the picker
 - First run with VLC installed: assumes you're on the latest and records it
 - Installed / latest build tiles with readable dates and CPU type
-- Install any of the 15 most recent builds (rollback or reinstall)
-- Optional: launch VLC after updating, close the updater after updating
+- Builds tab: install any of the 15 most recent builds (rollback or reinstall)
+- Optional: launch VLC after updating
 - One-click button to open the VLC settings folder
 
 State + options: `%LOCALAPPDATA%\VlcNightlyUpdater\state.json`. Cached installers: `...\VlcNightlyUpdater\cache\<arch>`.
 
 ## Background update checks (optional, off by default)
-Options > "Check for VLC updates in the background". It only works in the installed copy.
+Settings > "Notify me about new nightlies". It only works in the installed copy.
 
 - **Off (default):** nothing is registered with Windows and nothing runs. Each time the app opens with the option off,
   it also deletes any leftover task/keys, so the switch is always the source of truth.
@@ -53,8 +64,8 @@ VLC publishes a separate nightly channel per CPU type, and the updater picks the
 | ARM64     | `nightly-win64-arm-llvm/` |
 
 "Auto" (the default) matches whatever VLC you already have, detected from `vlc.exe` itself. Otherwise it uses
-your Windows CPU type. You can pick a different build in Options; switching architecture always asks first, even
-with auto-update on. If VideoLAN renames a channel, edit the `Channels` table in `Services/UpdateService.cs`.
+your Windows CPU type. On ARM64 PCs you can pick a different build in Settings; switching architecture always asks first, even
+with auto-update on. If VideoLAN renames a channel, edit `Channels` in `Config/AppConfig.cs`.
 
 The updater itself ships as two setups (`-x64`, `-arm64`). 64-bit is primary; the ARM64 build is best-effort, and
 if it fails in CI the release goes out with x64 only.
@@ -64,7 +75,7 @@ On open, the app asks `https://api.github.com/repos/StrikerXR/VLC-nightly-auto-u
 is newer than the running version, it downloads the setup that matches **its own** CPU type, checks it against the
 release's `SHA256SUMS.txt`, runs it silently, and reopens itself. If the checksum file is missing, nothing is
 installed. It only self-updates the installed copy (never a build-folder or debugger run), and a failed self-update
-never blocks the VLC update. Turn it off in Options ("Keep this updater up to date automatically"), and you get
+never blocks the VLC update. Turn it off in Settings ("Keep this updater up to date"), and you get
 an "Update now" banner instead.
 
 Updating from 1.x: 1.x can't self-update, so install a 2.0 setup once by hand. It upgrades the old install in place.

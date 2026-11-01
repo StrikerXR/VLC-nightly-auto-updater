@@ -23,17 +23,17 @@ public static class BackgroundCheck
 {
     public const string Flag = "--background-check";
 
-    // Keep in sync with installer.iss ([Code] section).
-    public const string TaskName = "VlcNightlyUpdater Background Check";
-    public const string Aumid = "StrikerXR.VlcNightlyUpdater";
-    public const string Protocol = "vlcnightlyupdater";
+    // Names live in AppConfig (keep in sync with installer.iss [Code] section).
+    private const string TaskName = AppConfig.TaskName;
+    private const string Aumid = AppConfig.Aumid;
+    private const string Protocol = AppConfig.Protocol;
 
     private const string AumidKey = @"Software\Classes\AppUserModelId\" + Aumid;
     private const string ProtocolKey = @"Software\Classes\" + Protocol;
     // Created by Windows itself the first time a toast is shown for our AUMID.
     private const string NotifySettingsKey = @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\" + Aumid;
 
-    private const int EveryHours = 6;
+    private const int EveryHours = AppConfig.BackgroundEveryHours;
 
     public static bool IsBackgroundRun(IEnumerable<string> args) =>
         args.Any(a => string.Equals(a, Flag, StringComparison.OrdinalIgnoreCase));
@@ -74,14 +74,14 @@ public static class BackgroundCheck
         // Lets Windows show "VLC Nightly Updater" + our icon as the sender of the notification.
         using (var k = Registry.CurrentUser.CreateSubKey(AumidKey))
         {
-            k.SetValue("DisplayName", "VLC Nightly Updater");
+            k.SetValue("DisplayName", AppConfig.AppName);
             k.SetValue("IconUri", Path.Combine(dir, "Assets", "app.ico"));
         }
 
         // Clicking the notification opens vlcnightlyupdater:open, which starts the app.
         using (var k = Registry.CurrentUser.CreateSubKey(ProtocolKey))
         {
-            k.SetValue("", "URL:VLC Nightly Updater");
+            k.SetValue("", "URL:" + AppConfig.AppName);
             k.SetValue("URL Protocol", "");
             using var cmd = k.CreateSubKey(@"shell\open\command");
             cmd.SetValue("", $"\"{exe}\" \"%1\"");

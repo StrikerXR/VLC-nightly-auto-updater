@@ -1,0 +1,34 @@
+<!--
+  DESIGN TOKENS: the only place colors, radii and opacities are defined.
+  Change a value here and the whole app follows. Never hard-code a color in a view or in C#.
+  Naming: Vnu<Thing>[Brush|Radius|Opacity]. Phase brushes are looked up by name from code: Vnu + Phase + Brush.
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Brand -->
+    <SolidColorBrush x:Key="VnuBrandBrush" Color="#FFFF8800" />
+    <SolidColorBrush x:Key="VnuBrandTintBrush" Color="#33FF8800" />
+    <SolidColorBrush x:Key="VnuOnBrandBrush" Color="#FFFFFFFF" />
+
+    <!-- Status phases (icon color + 20% tint behind it). Names are read by Views/StatusCard.xaml.cs -->
+    <SolidColorBrush x:Key="VnuPhaseWorkingBrush" Color="#FFFF8800" />
+    <SolidColorBrush x:Key="VnuPhaseWorkingTintBrush" Color="#33FF8800" />
+    <SolidColorBrush x:Key="VnuPhaseDownloadBrush" Color="#FFFF8800" />
+    <SolidColorBrush x:Key="VnuPhaseDownloadTintBrush" Color="#33FF8800" />
+    <SolidColorBrush x:Key="VnuPhaseGoodBrush" Color="#FF6CCB5F" />
+    <SolidColorBrush x:Key="VnuPhaseGoodTintBrush" Color="#336CCB5F" />
+    <SolidColorBrush x:Key="VnuPhaseWarnBrush" Color="#FFFCE100" />
+    <SolidColorBrush x:Key="VnuPhaseWarnTintBrush" Color="#33FCE100" />
+    <SolidColorBrush x:Key="VnuPhaseBadBrush" Color="#FFFF6B6B" />
+    <SolidColorBrush x:Key="VnuPhaseBadTintBrush" Color="#33FF6B6B" />
+
+    <!-- Shape -->
+    <CornerRadius x:Key="VnuCardRadius">12</CornerRadius>
+    <CornerRadius x:Key="VnuChipRadius">6</CornerRadius>
+
+    <!-- Text emphasis (opacity) -->
+    <x:Double x:Key="VnuMutedOpacity">0.7</x:Double>
+    <x:Double x:Key="VnuSubtleOpacity">0.6</x:Double>
+</ResourceDictionary>
