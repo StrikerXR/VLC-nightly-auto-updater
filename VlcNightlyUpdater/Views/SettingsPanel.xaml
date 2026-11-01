@@ -25,6 +25,15 @@
                 </StackPanel>
             </Border>
 
+            <!-- Accent color selection -->
+            <Border Style="{StaticResource VnuCard}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Accent color" Style="{StaticResource VnuLabel}" />
+                    <ComboBox x:Name="AccentPicker" HorizontalAlignment="Stretch"
+                              SelectionChanged="AccentPicker_SelectionChanged" />
+                </StackPanel>
+            </Border>
+
             <!-- Only shown on ARM64 PCs, where there are two VLC builds to choose from. -->
             <Border x:Name="ArchCard" Style="{StaticResource VnuCard}" Visibility="Collapsed">
                 <StackPanel Spacing="8">

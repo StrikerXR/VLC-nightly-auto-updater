@@ -46,6 +46,10 @@ public static class AppConfig
     public const int CacheKeep = 3;                       // installers kept per CPU type for offline rollback
     public const long MinFreeBytes = 400L * 1024 * 1024;  // refuse to download with less free disk than this
 
+    // ---- auto-update polling & retry ----
+    public static readonly TimeSpan AutoCheckInterval = TimeSpan.FromHours(4);
+    public static readonly TimeSpan NetworkRetryDelay = TimeSpan.FromSeconds(15);
+
     // ---- optional background check. KEEP IN SYNC with installer.iss [Code] (it removes the same names) ----
     public const string TaskName = "VlcNightlyUpdater Background Check";
     public const string Aumid = "StrikerXR.VlcNightlyUpdater";

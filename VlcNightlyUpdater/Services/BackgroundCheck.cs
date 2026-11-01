@@ -13,8 +13,8 @@ namespace VlcNightlyUpdater.Services;
 ///
 /// While it is off, NOTHING exists: no scheduled task, no startup entry, no service, no registry keys.
 /// While it is on, there is exactly one per-user Windows scheduled task that starts this exe with
-/// --background-check at sign-in and every few hours. That run has no window: it asks VideoLAN for the latest
-/// nightly, shows a Windows notification if it's newer than what you have, and exits. It never installs anything.
+/// --background-check at sign-in and every few hours. That run has no window: it checks for updater and VLC
+/// updates, pre-downloads the verified installer when auto-update is on, and notifies the user.
 ///
 /// Everything this class creates is removed again by <see cref="Disable"/>, and installer.iss removes the same
 /// names on uninstall. If you add anything here, add it to both.
@@ -176,58 +176,87 @@ public static class BackgroundCheck
 
     // ---------- the headless run ----------
 
-    /// <summary>What the scheduled task runs. No window. Checks, maybe notifies, returns.</summary>
+    /// <summary>What the scheduled task runs. No window. Checks, pre-downloads if auto-update is on, notifies, returns.</summary>
     public static async Task RunAsync()
     {
         var state = StateStore.Load();
-
-        // The switch is the source of truth: if it's off, clean up anything stale and do nothing at all.
-        if (!state.BackgroundCheck)
-        {
-            Disable();
-            return;
-        }
+        if (!state.BackgroundCheck) { Disable(); return; }
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
         var ct = cts.Token;
 
+        // 1) Updater update check
+        try
+        {
+            var self = await SelfUpdater.CheckAsync(state.AllowPreRelease, ct).ConfigureAwait(false);
+            if (self is not null && state.LastNotifiedSelfVersion != self.Version.ToString())
+            {
+                var pre = self.PreRelease ? " (pre-release)" : "";
+                if (ShowToast("vnu-self", "vnu", Strings.SelfUpdateNotificationTitle,
+                    $"{Strings.SelfUpdateNotificationBody(self.Version)}{pre}"))
+                {
+                    state.LastNotifiedSelfVersion = self.Version.ToString();
+                    StateStore.Save(state);
+                }
+            }
+        }
+        catch { /* best-effort: keep going to check VLC */ }
+
+        // 2) VLC nightly check
         var vlc = VlcLocator.Find();
-        if (vlc is null || state.InstalledBuild is null) return; // nothing to compare against yet
+        if (vlc is null || state.InstalledBuild is null) return;
 
         var target = ArchInfo.ParseKey(state.ArchOverride) ?? vlc.Arch ?? ArchInfo.Native;
         if (!ArchInfo.Supported.Contains(target)) target = ArchInfo.Native;
-        if (vlc.Arch is { } have && have != target) return; // switching CPU type is always the user's call
+        if (vlc.Arch is { } have && have != target) return;
 
         var svc = new UpdateService { Arch = target };
         var folders = await svc.ListFoldersAsync(ct).ConfigureAwait(false);
         var latest = await svc.GetLatestAsync(folders, ct).ConfigureAwait(false);
 
-        if (string.CompareOrdinal(state.InstalledBuild, latest.Folder) >= 0) return; // up to date
+        if (string.CompareOrdinal(state.InstalledBuild, latest.Folder) >= 0) return;
 
-        // Re-read so a change the app made while we were checking isn't overwritten, and only tell them once per build.
         state = StateStore.Load();
         if (!state.BackgroundCheck || state.LastNotifiedBuild == latest.Folder) return;
 
-        if (Notify(latest, target))
+        var preCached = false;
+        if (state.AutoUpdate)
+        {
+            try
+            {
+                await svc.EnsureInstallerAsync(
+                    latest,
+                    new Progress<DownloadProgress>(),
+                    new Progress<InstallStage>(),
+                    ct).ConfigureAwait(false);
+                preCached = true;
+            }
+            catch { /* best-effort pre-download */ }
+        }
+
+        var text = preCached
+            ? Strings.BackgroundDownloaded(latest.Folder, target)
+            : $"{latest.Folder} ({target.Label()}). Open VLC Nightly Updater to install it.";
+
+        if (ShowToast("vlc-update", "vlc", "New VLC nightly available", text))
         {
             state.LastNotifiedBuild = latest.Folder;
             StateStore.Save(state);
         }
     }
 
-    private static bool Notify(BuildInfo latest, VlcArch arch)
+    private static bool ShowToast(string tag, string group, string title, string body)
     {
         try
         {
-            RegisterNotifications(); // in case it was cleaned away
-
+            RegisterNotifications();
             static string Esc(string s) => SecurityElement.Escape(s) ?? "";
             var xml = $"""
                 <toast activationType="protocol" launch="{Protocol}:open">
                   <visual>
                     <binding template="ToastGeneric">
-                      <text>New VLC nightly available</text>
-                      <text>{Esc(latest.Folder)} ({Esc(arch.Label())}). Open VLC Nightly Updater to install it.</text>
+                      <text>{Esc(title)}</text>
+                      <text>{Esc(body)}</text>
                     </binding>
                   </visual>
                 </toast>
@@ -237,8 +266,8 @@ public static class BackgroundCheck
             doc.LoadXml(xml);
             var toast = new ToastNotification(doc)
             {
-                Tag = "vlc-update",              // a newer one replaces an older one instead of stacking
-                Group = "vlc",
+                Tag = tag,
+                Group = group,
                 ExpirationTime = DateTimeOffset.Now.AddDays(3)
             };
             ToastNotificationManager.CreateToastNotifier(Aumid).Show(toast);

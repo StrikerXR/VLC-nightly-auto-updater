@@ -96,6 +96,13 @@ public static class Strings
     public const string BehindCaption = "commits behind";
     public const string BehindNone = "you're current";
 
+    // ---- background & self-update notifications ----
+    public const string SelfUpdateNotificationTitle = "New VLC Nightly Updater available";
+    public static string SelfUpdateNotificationBody(Version v) =>
+        $"Version {v} is available. Open VLC Nightly Updater to install it.";
+    public static string BackgroundDownloaded(string folder, VlcArch a) =>
+        $"{folder} ({a.Label()}) is downloaded and ready. Open to install.";
+
     // ---- tabs: settings / builds ----
     public const string BackgroundOn = "On: a scheduled task checks at sign-in and every 6 hours and shows a notification. It never installs by itself.";
     public const string BackgroundOff = "Off: nothing runs in the background.";

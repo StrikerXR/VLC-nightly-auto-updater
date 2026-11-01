@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using VlcNightlyUpdater.Services;
 using VlcNightlyUpdater.Views;
 
@@ -21,6 +22,9 @@ public sealed partial class MainWindow : Window
     private CancellationTokenSource? _opCts;                  // one action: cancelled by the Cancel button too
     private readonly AppState _state = StateStore.Load();
 
+    private readonly DispatcherTimer _autoCheckTimer = new();
+    private DispatcherTimer? _retryTimer;
+
     private BuildInfo? _pending;        // an update waiting for the user to press "Update now"
     private BuildInfo? _latest;         // newest build found by the last check
     private SelfUpdateInfo? _selfUpdate;
@@ -34,6 +38,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         Title = AppConfig.AppName;
         SetupWindow();
+        ApplyAccent();
 
         VersionText.Text = $"v{Net.CurrentVersion}" + (IsDecember ? " \U0001F384" : "");
 
@@ -47,19 +52,60 @@ public sealed partial class MainWindow : Window
         Status.CancelClicked += (_, _) => _opCts?.Cancel();
         Actions.PrimaryClicked += async (_, _) =>
         {
+            _retryTimer?.Stop();
             if (_pending is { } build) await RunGuardedAsync(() => InstallBuildAsync(build));
             else await RunGuardedAsync(CheckFlowAsync);
         };
-        Settings.RecheckRequested += async (_, _) => await RunGuardedAsync(CheckFlowAsync);
-        Builds.InstallRequested += async (_, folder) => await RunGuardedAsync(() => InstallFolderAsync(folder));
+        Settings.RecheckRequested += async (_, _) =>
+        {
+            _retryTimer?.Stop();
+            await RunGuardedAsync(CheckFlowAsync);
+        };
+        Settings.AccentChanged += (_, _) => ApplyAccent();
+        Builds.InstallRequested += async (_, folder) =>
+        {
+            _retryTimer?.Stop();
+            await RunGuardedAsync(() => InstallFolderAsync(folder));
+        };
 
-        Closed += (_, _) => { _closed = true; _cts.Cancel(); };
+        ThemeService.ListenToSystemAccent(() =>
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (_state.AccentColor == "system") ApplyAccent();
+            });
+        });
+
+        // Periodic check while the app stays open
+        _autoCheckTimer.Interval = AppConfig.AutoCheckInterval;
+        _autoCheckTimer.Tick += async (_, _) =>
+        {
+            if (!_busy && _state.AutoUpdate)
+                await RunGuardedAsync(CheckFlowAsync);
+        };
+        _autoCheckTimer.Start();
+
+        Closed += (_, _) =>
+        {
+            _closed = true;
+            _autoCheckTimer.Stop();
+            _retryTimer?.Stop();
+            _cts.Cancel();
+        };
+
         Root.Loaded += async (_, _) =>
         {
             if (_started) return;
             _started = true;
             await RunGuardedAsync(CheckFlowAsync);
         };
+    }
+
+    private void ApplyAccent()
+    {
+        ThemeService.ApplyAccent(_state.AccentColor);
+        BrandBadge.Background = (Brush)Application.Current.Resources["VnuBrandBrush"];
+        Status.RefreshTheme();
     }
 
     private void Tabs_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
@@ -79,10 +125,25 @@ public sealed partial class MainWindow : Window
         SelfUpdateButton.IsEnabled = !busy;
     }
 
+    private void ScheduleRetry()
+    {
+        if (_closed || !_state.AutoUpdate) return;
+        _retryTimer?.Stop();
+        _retryTimer = new DispatcherTimer { Interval = AppConfig.NetworkRetryDelay };
+        _retryTimer.Tick += async (_, _) =>
+        {
+            _retryTimer?.Stop();
+            if (!_busy && !_closed && _state.AutoUpdate)
+                await RunGuardedAsync(CheckFlowAsync);
+        };
+        _retryTimer.Start();
+    }
+
     /// <summary>Common wrapper: busy state, buttons, cancellation and error handling for every action.</summary>
     private async Task RunGuardedAsync(Func<Task> work)
     {
         if (_busy) return;
+        _retryTimer?.Stop();
         _busy = true;
         SetBusy(true);
         Status.SetBar(true);
@@ -106,6 +167,12 @@ public sealed partial class MainWindow : Window
         catch (OperationCanceledException)
         {
             Status.Set(Strings.Timeout, Strings.TimeoutDetail, Phase.Bad);
+            ScheduleRetry();
+        }
+        catch (HttpRequestException ex)
+        {
+            Status.Set(Strings.WentWrong, ex.Message, Phase.Bad);
+            ScheduleRetry();
         }
         catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
         {

@@ -81,9 +81,9 @@ an "Update now" banner instead.
 Updating from 1.x: 1.x can't self-update, so install a 2.0 setup once by hand. It upgrades the old install in place.
 
 ## Versioning (one version for everything)
-`VERSION` holds the full version (currently `4.0.0`) and that exact number is used for the app, the installers, the
-exe names (`VlcNightlyUpdater-Setup-4.0.0-x64.exe`), the git tag (`v4.0.0`) and the GitHub Release. An installed
-`3.x` sees `4.0.0` as newer and updates itself. To ship the next version, edit `VERSION` (e.g. `4.0.1`) and run
+`VERSION` holds the full version (currently `4.1.0`) and that exact number is used for the app, the installers, the
+exe names (`VlcNightlyUpdater-Setup-4.1.0-x64.exe`), the git tag (`v4.1.0`) and the GitHub Release. An installed
+`4.0.x` sees `4.1.0` as newer and updates itself. To ship the next version, edit `VERSION` (e.g. `4.1.1`) and run
 the workflow. Re-running the workflow for the same version just replaces that release's files.
 
 ## Releases / CI
@@ -105,7 +105,7 @@ they can change the minimum Windows version).
 
 ## Installer
 Dark, per-user (no admin), no folder/shortcut questions, Windows 10 1809+ and Windows 11. Running a newer installer over an older
-install says it's an **update** (`3.0.0 to 4.0.0`), replaces the program files cleanly, and keeps your
+install says it's an **update** (`4.0.0 to 4.1.0`), replaces the program files cleanly, and keeps your
 settings. **Uninstalling removes everything** and asks nothing: the program files, saved settings and cached
 installers (`%LOCALAPPDATA%\VlcNightlyUpdater`), self-update downloads in `%TEMP%`, the background-check task and
 registry keys, and the Start menu entry. Your VLC settings (`%APPDATA%\vlc`) and VLC itself are never touched.

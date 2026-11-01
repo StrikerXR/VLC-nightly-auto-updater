@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using VlcNightlyUpdater.Services;
 
 namespace VlcNightlyUpdater.Views;
@@ -14,6 +15,7 @@ public sealed partial class SettingsPanel : UserControl
     private bool _loading;
 
     public event EventHandler? RecheckRequested;
+    public event EventHandler<string>? AccentChanged;
 
     public SettingsPanel()
     {
@@ -40,6 +42,7 @@ public sealed partial class SettingsPanel : UserControl
         PreRow.IsOn = state.AllowPreRelease;
         BgRow.IsOn = state.BackgroundCheck;
         BuildArchPicker();
+        BuildAccentPicker();
         _loading = false;
 
         RepoLink.NavigateUri = new Uri(AppConfig.RepoUrl);
@@ -48,13 +51,60 @@ public sealed partial class SettingsPanel : UserControl
     }
 
     /// <summary>Disables the pickers while an action runs.</summary>
-    public void SetBusy(bool busy) => ArchPicker.IsEnabled = !busy;
+    public void SetBusy(bool busy)
+    {
+        ArchPicker.IsEnabled = !busy;
+        AccentPicker.IsEnabled = !busy;
+    }
 
     private void Save(Action<AppState> change)
     {
         if (_loading) return;
         change(_state);
         StateStore.Save(_state);
+    }
+
+    // ---------- accent color ----------
+
+    private void BuildAccentPicker()
+    {
+        AccentPicker.Items.Clear();
+        foreach (var opt in ThemeService.Options)
+        {
+            var dot = new Border
+            {
+                Width = 14,
+                Height = 14,
+                CornerRadius = new CornerRadius(7),
+                Background = new SolidColorBrush(opt.PreviewColor),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var label = new TextBlock
+            {
+                Text = opt.Name,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var panel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 10,
+                Children = { dot, label }
+            };
+            AccentPicker.Items.Add(new ComboBoxItem { Content = panel, Tag = opt.Key });
+        }
+
+        var want = _state.AccentColor;
+        AccentPicker.SelectedItem = AccentPicker.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == want)
+                                    ?? AccentPicker.Items[0];
+    }
+
+    private void AccentPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || AccentPicker.SelectedItem is not ComboBoxItem { Tag: string key }) return;
+        if (_state.AccentColor == key) return;
+        Save(s => s.AccentColor = key);
+        ThemeService.ApplyAccent(key);
+        AccentChanged?.Invoke(this, key);
     }
 
     // ---------- VLC build (ARM64 PCs only) ----------
@@ -111,7 +161,11 @@ public sealed partial class SettingsPanel : UserControl
         {
             await Task.Run(() => { if (on) BackgroundCheck.Enable(); else BackgroundCheck.Disable(); });
             _state.BackgroundCheck = on;
-            if (!on) _state.LastNotifiedBuild = null;
+            if (!on)
+            {
+                _state.LastNotifiedBuild = null;
+                _state.LastNotifiedSelfVersion = null;
+            }
             StateStore.Save(_state);
             BgRow.Hint = BackgroundNote(on);
         }

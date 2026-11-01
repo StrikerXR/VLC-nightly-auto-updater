@@ -17,7 +17,7 @@
         <!-- Custom title area (drag region). Native min/close buttons overlay on the right. -->
         <Grid x:Name="TitleBarArea" Padding="16,0,0,0">
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <Border Width="22" Height="22" CornerRadius="{StaticResource VnuChipRadius}"
+                <Border x:Name="BrandBadge" Width="22" Height="22" CornerRadius="{StaticResource VnuChipRadius}"
                         Background="{StaticResource VnuBrandBrush}">
                     <FontIcon Glyph="&#xE896;" FontSize="12" Foreground="{StaticResource VnuOnBrandBrush}" />
                 </Border>

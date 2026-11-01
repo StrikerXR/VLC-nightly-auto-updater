@@ -30,8 +30,12 @@ public sealed class AppState
     public bool BackgroundCheck { get; set; }
     /// <summary>"auto" (match the installed VLC), or "x64" / "arm64". Only shown on ARM64 PCs.</summary>
     public string ArchOverride { get; set; } = "auto";
+    /// <summary>Chosen accent color: "orange" (default), "system", "blue", "teal", "green", "purple", "pink", "red", "amber".</summary>
+    public string AccentColor { get; set; } = "orange";
 
     // ---- bookkeeping ----
     /// <summary>Newest build the background check already notified about (so it only tells you once).</summary>
     public string? LastNotifiedBuild { get; set; }
+    /// <summary>Newest updater version the background check already notified about.</summary>
+    public string? LastNotifiedSelfVersion { get; set; }
 }

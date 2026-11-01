@@ -2,7 +2,7 @@
 ; Single source for the version: the VERSION file (MAJOR.MINOR.PATCH). MyArch is x64 or arm64.
 ; Requires Windows 10 1809 (build 17763) or newer, including Windows 11. 64-bit and ARM64 only.
 #ifndef MyAppVersion
-  #define MyAppVersion "4.0.0"
+  #define MyAppVersion "4.1.0"
 #endif
 #ifndef MyArch
   #define MyArch "x64"
