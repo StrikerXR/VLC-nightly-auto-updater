@@ -284,15 +284,19 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
-      contents: write        # create the GitHub Release
+      contents: write        # create the GitHub Release (POST /releases)
       actions: read          # download the build artifacts in this job
       id-token: write        # build provenance attestation
       attestations: write
+      # Everything not listed above is "none" once a job sets `permissions`.
     env:
       APP_VERSION: ${{ needs.version.outputs.app }}
       TAG: ${{ needs.version.outputs.tag }}
       WANT_ARM64: ${{ needs.version.outputs.arm64 }}
-      GH_TOKEN: ${{ github.token }}
+      # Uses the repo secret RELEASE_TOKEN (a PAT with Contents: read/write) if you add one,
+      # otherwise the built-in token. The PAT is the fallback for repos/orgs where the built-in
+      # token is forced read-only and cannot create releases (HTTP 403).
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
       - name: Collect installers
@@ -358,7 +362,13 @@ jobs:
             args=(--target "$GITHUB_SHA" --title "VLC Nightly Updater v$APP_VERSION" --notes-file notes.md --generate-notes)
             [[ "$PRERELEASE" == "true" ]] && args+=(--prerelease) || args+=(--latest)
             [[ "$DRAFT" == "true" ]] && args+=(--draft)
-            gh release create "$TAG" "${files[@]}" "${args[@]}"
+            if ! gh release create "$TAG" "${files[@]}" "${args[@]}" 2> create.err; then
+              cat create.err
+              if grep -q "403" create.err; then
+                echo "::error::GitHub refused to create the release (403). Fix: repo Settings > Actions > General > Workflow permissions > select 'Read and write permissions' (if greyed out, an org/enterprise policy is forcing read-only), OR add a repo secret RELEASE_TOKEN holding a PAT with Contents: Read and write."
+              fi
+              exit 1
+            fi
           fi
 
       # Download what GitHub now serves and check it against SHA256SUMS.txt, exactly like the self-updater will.
