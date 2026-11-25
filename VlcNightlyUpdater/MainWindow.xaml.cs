@@ -15,6 +15,9 @@ namespace VlcNightlyUpdater;
 ///   MainWindow.SelfUpdate.cs  updating this updater
 ///   MainWindow.Vlc.cs         closing/reopening VLC, dialogs
 ///   MainWindow.Changes.cs     the "commits since" tab and behind-count tile
+///   MainWindow.Undo.cs        "Undo last update"
+///   MainWindow.FirstRun.cs    the first-run "Is this the latest nightly?" question
+///   MainWindow.Diagnostics.cs "Copy diagnostics"
 /// </summary>
 public sealed partial class MainWindow : Window
 {
@@ -44,12 +47,14 @@ public sealed partial class MainWindow : Window
 
         VersionText.Text = $"v{Net.CurrentVersion}" + (Portable.IsPortable ? Format.Dot + "portable" : "") + (IsDecember ? " \U0001F384" : "");
 
+        _state.CacheKeep = Math.Clamp(_state.CacheKeep, AppConfig.CacheKeepChoices.Min(), AppConfig.CacheKeepChoices.Max());
         Settings.Load(_state);
         SelfUpdater.CleanupStale();
         Builds.Refresh();
         Builds.SetHistory(_state.History);
         Tiles.SetInstalled(_state.InstalledBuild, ArchInfo.ParseKey(_state.InstalledArch));
         Actions.SetLastChecked(_state.LastChecked);
+        RefreshUndo();
 
         // wiring: views raise events, this file decides what they mean
         Status.CancelClicked += (_, _) => _opCts?.Cancel();
@@ -66,7 +71,19 @@ public sealed partial class MainWindow : Window
         };
         Settings.AccentChanged += (_, _) => ApplyAccent();
         Settings.WhatsNewRequested += async (_, _) => await ShowCurrentNotesAsync();
+        Settings.DiagnosticsRequested += (_, _) => CopyDiagnostics();
+        Settings.CacheKeepChanged += (_, _) =>
+        {
+            foreach (var arch in ArchInfo.Supported) PruneCache(arch);
+            Builds.Refresh();
+            RefreshUndo();
+        };
         Actions.SkipClicked += (_, _) => SkipPendingBuild();
+        Actions.UndoClicked += async (_, _) =>
+        {
+            _retryTimer?.Stop();
+            await RunGuardedAsync(UndoLastUpdateAsync);
+        };
         Builds.InstallRequested += async (_, folder) =>
         {
             _retryTimer?.Stop();
@@ -104,6 +121,12 @@ public sealed partial class MainWindow : Window
             _started = true;
             await ShowJustUpdatedAsync(); // after an update: what changed (once)
             await RunGuardedAsync(CheckFlowAsync);
+
+            // Opened by the notification's "Update now" button: go straight on to the install (it still asks about
+            // closing VLC, and never changes CPU type without asking).
+            if (LaunchIntent.Current.Kind == IntentKind.Update && _pending is { } waiting && !_pendingIsSwitch)
+                await RunGuardedAsync(() => InstallBuildAsync(waiting));
+            LaunchIntent.Current = LaunchIntent.None;
         };
 
         // F5 = Check again
@@ -216,6 +239,7 @@ public sealed partial class MainWindow : Window
                 Status.SetBar(false);
                 SetBusy(false);
                 Actions.SetPrimary(updateWaiting: _pending is not null, canSkip: _pending is not null && !_pendingIsSwitch);
+                RefreshUndo();
                 _ = RefreshChangesAsync();
             }
         }

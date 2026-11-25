@@ -34,6 +34,11 @@ public sealed partial class StatusCard : UserControl
 
     public void RefreshTheme() => ApplyPhaseBrushes();
 
+    /// <summary>What the card says right now (read-only; used by "Copy diagnostics").</summary>
+    public string CurrentTitle => TitleText.Text;
+    public string CurrentDetail => DetailText.Text;
+    public Phase CurrentPhase => _phase;
+
     private void ApplyPhaseBrushes()
     {
         StatusIcon.Foreground = (Brush)Application.Current.Resources[$"VnuPhase{_phase}Brush"];

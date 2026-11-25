@@ -5,7 +5,7 @@ using VlcNightlyUpdater.Views;
 
 namespace VlcNightlyUpdater;
 
-/// <summary>Everything that asks the user a question or deals with the running VLC. Wording lives in Strings.cs.</summary>
+/// <summary>Everything that asks the user a question or deals with the running VLC (close it / wait for it). Wording lives in Strings.cs.</summary>
 public sealed partial class MainWindow
 {
     /// <summary>Two-button dialog. Returns true if the main button was pressed.</summary>
@@ -23,16 +23,42 @@ public sealed partial class MainWindow
     private Task<bool> ConfirmArchSwitchAsync(VlcArch from, VlcArch to) =>
         ConfirmAsync(Strings.SwitchDialogTitle(to), Strings.SwitchDialogBody(from, to), Strings.InstallArch(to));
 
+    private enum VlcChoice { Close, Wait, Cancel }
+
+    /// <summary>VLC is open: close it for me, wait until I close it, or cancel.</summary>
+    private async Task<VlcChoice> AskVlcRunningAsync()
+    {
+        var result = await new ContentDialog
+        {
+            XamlRoot = Root.XamlRoot,
+            Title = Strings.VlcRunningTitle,
+            Content = Strings.VlcRunningBody,
+            PrimaryButtonText = Strings.CloseAndUpdate,
+            SecondaryButtonText = Strings.WaitForClose,
+            CloseButtonText = Strings.Cancel,
+            DefaultButton = ContentDialogButton.Primary
+        }.ShowAsync();
+
+        return result switch
+        {
+            ContentDialogResult.Primary => VlcChoice.Close,
+            ContentDialogResult.Secondary => VlcChoice.Wait,
+            _ => VlcChoice.Cancel
+        };
+    }
+
     /// <summary>
-    /// If VLC is open: ask, close it politely, wait for it to actually exit, and only offer a force-close if it
-    /// refuses. Returns (VLC is closed, VLC had been running).
+    /// If VLC is open: ask (or, with "wait for VLC" on, don't ask), then either close it politely, wait for the user to
+    /// close it, or give up. Offers a force-close only if VLC refuses to close. Returns (VLC is closed, VLC should be
+    /// reopened afterwards). When the user closed VLC themselves we don't reopen it (unless "Open VLC after updating").
     /// </summary>
-    private async Task<(bool Closed, bool WasRunning)> PrepareVlcAsync()
+    private async Task<(bool Closed, bool WasRunning)> PrepareVlcAsync(BuildInfo build)
     {
         if (!VlcProcess.IsRunning()) return (true, false);
 
-        if (!await ConfirmAsync(Strings.VlcRunningTitle, Strings.VlcRunningBody, Strings.CloseAndUpdate, yesIsDefault: true))
-            return (false, true);
+        var choice = _state.WaitForVlc ? VlcChoice.Wait : await AskVlcRunningAsync();
+        if (choice == VlcChoice.Cancel) return (false, true);
+        if (choice == VlcChoice.Wait) return (await WaitForVlcToCloseAsync(build), false);
 
         Status.Set(Strings.ClosingVlc, Strings.ClosingVlcDetail, Phase.Working);
         Status.SetBar(true);
@@ -45,5 +71,34 @@ public sealed partial class MainWindow
 
         VlcProcess.Kill();
         return (await VlcProcess.WaitForExitAsync(polls: 10, delayMs: 300, Ct), true);
+    }
+
+    /// <summary>
+    /// "Install when VLC closes": the installer is already downloaded and verified, so this only waits. Nothing is
+    /// closed for the user. The status card's Cancel button stops the wait (returns false); closing the window too.
+    /// </summary>
+    private async Task<bool> WaitForVlcToCloseAsync(BuildInfo build)
+    {
+        Status.Set(Strings.WaitingForVlc, Strings.WaitingForVlcDetail(build.Folder), Phase.Working);
+        Status.SetBar(true);
+        Status.SetCancel(visible: true);
+        try
+        {
+            do
+            {
+                while (VlcProcess.IsRunning()) await Task.Delay(AppConfig.VlcWaitPollMs, Ct);
+                await Task.Delay(AppConfig.VlcWaitGraceMs, Ct); // let Windows release VLC's files
+            }
+            while (VlcProcess.IsRunning());                     // VLC was opened again meanwhile: keep waiting
+            return true;
+        }
+        catch (OperationCanceledException) when (!_closed && _opCts?.IsCancellationRequested == true)
+        {
+            return false; // the user pressed Cancel
+        }
+        finally
+        {
+            Status.SetCancel(visible: false);
+        }
     }
 }

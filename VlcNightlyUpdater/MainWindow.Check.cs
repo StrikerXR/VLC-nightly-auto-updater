@@ -45,14 +45,22 @@ public sealed partial class MainWindow
         Tiles.SetInstalled(_state.InstalledBuild, vlc?.Arch ?? ArchInfo.ParseKey(_state.InstalledArch));
         Tiles.SetLatest(latest);
 
-        // First run with VLC already installed: assume latest, just remember it.
+        // First run with VLC already installed: we don't know which nightly it is, so ask (see MainWindow.FirstRun.cs).
         if (_state.InstalledBuild is null && vlc is not null && (vlc.Arch is null || vlc.Arch == target))
         {
+            StateStore.Save(_state);
+            Actions.SetLastChecked(_state.LastChecked);
+
+            if (!await AskIsLatestAsync(latest, target))
+            {
+                await InstallBuildAsync(latest); // "No" and "I don't know": install the newest to be safe
+                return;
+            }
+
             _state.InstalledBuild = latest.Folder;
             _state.InstalledHash = latest.Hash;
             _state.InstalledArch = target.Key();
             StateStore.Save(_state);
-            Actions.SetLastChecked(_state.LastChecked);
             Tiles.SetInstalled(latest.Folder, target);
             Status.Set(Strings.FirstRun, Strings.FirstRunDetail, Phase.Good);
             return;

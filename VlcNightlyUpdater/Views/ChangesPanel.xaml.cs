@@ -4,9 +4,15 @@ using VlcNightlyUpdater.Services;
 
 namespace VlcNightlyUpdater.Views;
 
-/// <summary>Shows a commit list. Call exactly one of ShowNone / ShowLoading / Show / ShowError.</summary>
+/// <summary>
+/// Shows a commit list. Call exactly one of ShowNone / ShowLoading / Show / ShowError. The filter bar (text box + "hide
+/// merges and translations") only appears with a list and re-draws it from the commits already loaded: no network.
+/// </summary>
 public sealed partial class ChangesPanel : UserControl
 {
+    private ChangeRange? _range;
+    private Changelog? _log;
+
     public ChangesPanel()
     {
         InitializeComponent();
@@ -21,24 +27,48 @@ public sealed partial class ChangesPanel : UserControl
 
     public void Show(ChangeRange range, Changelog log)
     {
-        HeaderText.Text = range.Label;
-        SubText.Text = Format.Join($"{range.FromFolder}  \u2192  {range.ToFolder}", Strings.CommitCount(log.Total));
+        _range = range;
+        _log = log;
         GitLabLink.NavigateUri = new Uri(log.CompareUrl);
         GitLabLink.Visibility = Visibility.Visible;
-        CommitList.Children.Clear();
+        FilterBar.Visibility = log.Commits.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        Render();
+    }
 
+    private void FilterBox_TextChanged(object sender, TextChangedEventArgs e) => Render();
+    private void NoiseCheck_Changed(object sender, RoutedEventArgs e) => Render();
+
+    /// <summary>Draws the header and the commits that pass the filter.</summary>
+    private void Render()
+    {
+        if (_range is not { } range || _log is not { } log) return;
+
+        var hide = NoiseCheck.IsChecked == true;
+        var filtering = CommitFilter.IsActive(FilterBox.Text, hide);
+        var shown = log.Commits.Where(c => CommitFilter.Matches(c, FilterBox.Text, hide)).ToList();
+
+        HeaderText.Text = range.Label;
+        SubText.Text = Format.Join($"{range.FromFolder}  \u2192  {range.ToFolder}",
+            filtering ? Strings.CommitsMatching(shown.Count, log.Commits.Count) : Strings.CommitCount(log.Total));
+
+        CommitList.Children.Clear();
         if (log.Approximate) AddNote(Strings.ChangesApprox);
         if (log.Commits.Count == 0) AddNote(Strings.ChangesEmpty);
+        else if (shown.Count == 0) AddNote(Strings.ChangesNoMatch);
 
-        foreach (var c in log.Commits) CommitList.Children.Add(CommitRow(c));
+        foreach (var c in shown) CommitList.Children.Add(CommitRow(c));
 
-        if (log.Total > log.Commits.Count) AddNote(Strings.ChangesCapped(log.Commits.Count, log.Total));
+        if (log.Total > log.Commits.Count)
+            AddNote(filtering ? Strings.ChangesFilterCapped(log.Commits.Count, log.Total) : Strings.ChangesCapped(log.Commits.Count, log.Total));
     }
 
     // ---------- helpers ----------
 
     private void Message(string header, string body)
     {
+        _range = null;
+        _log = null;
+        FilterBar.Visibility = Visibility.Collapsed;
         HeaderText.Text = header;
         SubText.Text = "";
         GitLabLink.Visibility = Visibility.Collapsed;

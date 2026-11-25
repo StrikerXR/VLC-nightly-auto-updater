@@ -3,10 +3,11 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- Changes tab: the VLC commits between two nightlies (loaded automatically after each check). -->
+    <!-- Changes tab: the VLC commits between two nightlies (loaded automatically after each check), with a filter. -->
     <Border Style="{StaticResource VnuCard}" Padding="16,12">
         <Grid RowSpacing="8">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
@@ -24,7 +25,19 @@
                                  VerticalAlignment="Top" Visibility="Collapsed" />
             </Grid>
 
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <!-- Filter: shown only while a commit list is on screen. Logic lives in Services/CommitFilter.cs. -->
+            <Grid x:Name="FilterBar" Grid.Row="1" ColumnSpacing="12" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="FilterBox" PlaceholderText="Filter by text or author…"
+                         TextChanged="FilterBox_TextChanged" />
+                <CheckBox x:Name="NoiseCheck" Grid.Column="1" Content="Hide merges and translations" MinWidth="0"
+                          Checked="NoiseCheck_Changed" Unchecked="NoiseCheck_Changed" />
+            </Grid>
+
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                 <StackPanel x:Name="CommitList" Spacing="10" />
             </ScrollViewer>
         </Grid>

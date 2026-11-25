@@ -13,6 +13,19 @@
                     <v:ToggleRow x:Name="AutoRow" Glyph="&#xE895;" Title="Update VLC automatically"
                                  Hint="Installs a new nightly as soon as this app opens." />
                     <v:ToggleRow x:Name="LaunchRow" Glyph="&#xE768;" Title="Open VLC after updating" />
+                    <v:ToggleRow x:Name="WaitRow" Glyph="&#xE916;" Title="Wait for VLC instead of closing it"
+                                 Hint="If VLC is open during an update, the updater waits until you close it. Off: it asks first." />
+                </StackPanel>
+            </Border>
+
+            <!-- How many verified installers stay on disk. Feeds offline rollback and "Undo last update". -->
+            <Border Style="{StaticResource VnuCard}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Installers kept for offline rollback and undo" Style="{StaticResource VnuLabel}" />
+                    <ComboBox x:Name="CachePicker" HorizontalAlignment="Stretch"
+                              SelectionChanged="CachePicker_SelectionChanged" />
+                    <TextBlock Text="More means more rollbacks without a download, and more disk space. Older ones are removed after each update."
+                               Style="{StaticResource VnuLabel}" TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 
@@ -50,6 +63,8 @@
                 <TextBlock x:Name="ModeText" Style="{StaticResource VnuLabel}" TextWrapping="Wrap" Margin="4,0,0,0" />
                 <StackPanel Orientation="Horizontal" Spacing="4">
                     <HyperlinkButton x:Name="WhatsNewLink" Content="What's new in this version" Click="WhatsNewLink_Click" />
+                    <HyperlinkButton x:Name="DiagnosticsLink" Content="Copy diagnostics" Click="DiagnosticsLink_Click"
+                                     ToolTipService.ToolTip="Copies version, build and settings info to paste into a bug report" />
                     <HyperlinkButton x:Name="RepoLink" Content="GitHub" />
                     <HyperlinkButton x:Name="ReleasesLink" Content="Releases" />
                 </StackPanel>

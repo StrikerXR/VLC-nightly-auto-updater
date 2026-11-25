@@ -14,17 +14,26 @@ The UI is split into small views in `VlcNightlyUpdater/Views/`, flows in `MainWi
 each live in one file (`Config/`, `Theme/`). `python tools/make_icons.py` regenerates the app icons.
 
 ## Features
-- **Release-notes dialog** (new in 5.0): a new updater version shows its full notes first, then *Update and restart* or
+- **Undo last update** (new in 5.1): one button goes back to the build you had before, from the cached installer (works offline)
+  or by downloading it again. The build you backed out of is skipped. Same CPU type only
+- **Install when VLC closes** (new in 5.1): if VLC is open, choose *Wait until VLC closes* (or turn on *Wait for VLC instead of
+  closing it*). Nothing is closed for you; VLC isn't reopened afterwards unless *Open VLC after updating* is on
+- **First-run question** (new in 5.1): *Is this the latest nightly?* Yes keeps it; No and *I don't know* install the newest (safe default)
+- **Notification buttons** (new in 5.1): *Update now* and *Skip this build* on the new-nightly notification (see "Background update checks")
+- **Changes filter** (new in 5.1): search the commits and optionally hide merges and translations
+- **Copy diagnostics** (new in 5.1): Settings puts a short report on the clipboard for bug reports
+- **Installers to keep** (new in 5.1): 2, 3 (default), 5 or 10 cached installers
+- **Release-notes dialog** (since 5.0): a new updater version shows its full notes first, then *Update and restart* or
   *Later*; after an update the notes show once more. The same text is the top of the GitHub release (from `CHANGELOG.md`).
   Updates from 5.0.0 onward show it; older versions don't contain this feature
-- **Portable version** (new in 5.0): a zip, no installer. See "Portable" below
+- **Portable version** (since 5.0): a zip, no installer. See "Portable" below
 - **Skip this build**: don't install a broken nightly; the updater waits for the next one
 - **Recent installs**: the Builds tab lists your last installs with dates; **F5** checks again
 - **Commits since your build**: the Changes tab lists the VLC commits between your build and the latest, loads by itself, and a
   *Behind* tile shows how many commits you're missing
 - **Pre-releases for the updater** (Settings > Include pre-releases): checks GitHub's release list and takes whichever updater
   version is newest, pre-release or not
-- **Simple settings**: update automatically, open VLC afterwards, keep the updater current, include pre-releases, notifications.
+- **Simple settings**: update automatically, open VLC afterwards, wait for VLC instead of closing it, installers to keep, keep the updater current, include pre-releases, notifications, copy diagnostics.
   VLC is always reopened if it was running; the build picker shows only on ARM64 PCs
 - **Auto-update on open** (or switch to a manual "Update now" button)
 - **Updates itself** from this repo's GitHub Releases (see below)
@@ -37,10 +46,11 @@ each live in one file (`Config/`, `Theme/`). `python tools/make_icons.py` regene
 - **What's new**: lists the VLC commits between your build and the latest, and what your last update brought
   (from code.videolan.org; click a commit to open it)
 - **Smarter install flow**: downloads while VLC keeps running, closes VLC only right before installing
-  (gently, force-close only if you agree), reopens it afterwards, retries a failed install once, checks free disk
+  (gently, force-close only if you agree) or waits until you close it, reopens it afterwards (not after a wait), retries a failed install once, checks free disk
   space, and confirms vlc.exe really landed as the right architecture
-- **Offline rollback**: the last 3 verified installers are cached; cached builds are marked in the picker
-- First run with VLC installed: assumes you're on the latest and records it
+- **Offline rollback**: the last few verified installers are cached (3 by default, 2/3/5/10 in Settings); cached builds are marked in the picker.
+  The installers of the current and the previous build are never cleaned up, so Undo works offline
+- First run with VLC installed: asks *Is this the latest nightly?* (Yes records it; No / I don't know install the newest)
 - Installed / latest build tiles with readable dates and CPU type
 - Builds tab: install any of the 15 most recent builds (rollback or reinstall)
 - Optional: launch VLC after updating
@@ -66,6 +76,10 @@ Settings > "Notify me about new nightlies". It only works in the installed copy.
   build (once per build), and exits. It **never installs anything**; click the notification to open the app.
   It also adds two small per-user registry keys so Windows can show the notification and open the app when you click it
   (`HKCU\Software\Classes\AppUserModelId\StrikerXR.VlcNightlyUpdater` and `HKCU\Software\Classes\vlcnightlyupdater`).
+- **Notification buttons (5.1):** the nightly notification has *Update now* (opens the app and starts the install; it still asks
+  before closing VLC and never switches CPU type without asking) and *Skip this build* (recorded without opening a window, then a
+  small confirmation notification). They start the exe with `vlcnightlyupdater:update` / `vlcnightlyupdater:skip?build=<folder>`.
+  If the app is already open, a button only brings it to the front. Skipped builds are never notified about.
 - Turning it off, or uninstalling, removes the task and those keys.
 
 ## Architectures
@@ -94,9 +108,9 @@ an "Update now" banner instead.
 Updating from 1.x: 1.x can't self-update, so install a 2.0 setup once by hand. It upgrades the old install in place.
 
 ## Versioning (one version for everything)
-`VERSION` holds the full version (currently `5.0.0`) and that exact number is used for the app, the installers, the
-exe names (`VlcNightlyUpdater-Setup-5.0.0-x64.exe`), the git tag (`v5.0.0`) and the GitHub Release. An installed
-`4.x` sees `5.0.0` as newer and updates itself. To ship the next version, edit `VERSION` (e.g. `5.0.1`) and run
+`VERSION` holds the full version (currently `5.1.0`) and that exact number is used for the app, the installers, the
+exe names (`VlcNightlyUpdater-Setup-5.1.0-x64.exe`), the git tag (`v5.1.0`) and the GitHub Release. An installed
+`5.0.x` sees `5.1.0` as newer and updates itself. To ship the next version, edit `VERSION` (e.g. `5.1.1`) and run
 the workflow. Re-running the workflow for the same version just replaces that release's files.
 
 ## Releases / CI
@@ -121,7 +135,7 @@ they can change the minimum Windows version).
 
 ## Installer
 Dark, per-user (no admin), no folder/shortcut questions, Windows 10 1809+ and Windows 11. Running a newer installer over an older
-install says it's an **update** (`4.1.0 to 5.0.0`), replaces the program files cleanly, and keeps your
+install says it's an **update** (`5.0.0 to 5.1.0`), replaces the program files cleanly, and keeps your
 settings. **Uninstalling removes everything** and asks nothing: the program files, saved settings and cached
 installers (`%LOCALAPPDATA%\VlcNightlyUpdater`), self-update downloads in `%TEMP%`, the background-check task and
 registry keys, and the Start menu entry. Your VLC settings (`%APPDATA%\vlc`) and VLC itself are never touched.

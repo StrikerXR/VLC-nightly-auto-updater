@@ -16,12 +16,18 @@ public sealed class AppState
     /// <summary>The build before the current one (powers "what changed in my last update").</summary>
     public string? PreviousBuild { get; set; }
     public string? PreviousHash { get; set; }
+    /// <summary>CPU type of <see cref="PreviousBuild"/> ("x64" / "arm64"). "Undo last update" only goes back to the same CPU type.</summary>
+    public string? PreviousArch { get; set; }
     public DateTime? LastChecked { get; set; }
 
     // ---- settings (all shown in the Settings tab) ----
     /// <summary>true = install VLC updates as soon as the app opens; false = show "Update now" first.</summary>
     public bool AutoUpdate { get; set; } = true;
     public bool LaunchAfterUpdate { get; set; }
+    /// <summary>true = if VLC is open during an update, wait until the user closes it (no question, VLC is never closed for them).</summary>
+    public bool WaitForVlc { get; set; }
+    /// <summary>How many verified installers to keep per CPU type for offline rollback / undo. Clamped on use (see <see cref="AppConfig.CacheKeepChoices"/>).</summary>
+    public int CacheKeep { get; set; } = AppConfig.CacheKeep;
     /// <summary>Update this updater itself from GitHub Releases without asking.</summary>
     public bool AutoUpdateSelf { get; set; } = true;
     /// <summary>true = this updater also considers GitHub pre-releases and takes whichever version is newest.</summary>

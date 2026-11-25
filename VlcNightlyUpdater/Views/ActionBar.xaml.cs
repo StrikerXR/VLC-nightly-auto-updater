@@ -12,7 +12,18 @@ public sealed partial class ActionBar : UserControl
     /// <summary>"Skip this build" was pressed (only visible while a normal update is waiting).</summary>
     public event EventHandler? SkipClicked;
 
+    /// <summary>"Undo last update" was pressed (only visible when there is a build to go back to).</summary>
+    public event EventHandler? UndoClicked;
+
     public ActionBar() => InitializeComponent();
+
+    /// <summary>Shows the undo button when <paramref name="backTo"/> is a build we can return to; hides it when null.</summary>
+    public void SetUndo(string? backTo, bool busy)
+    {
+        UndoButton.Visibility = backTo is not null ? Visibility.Visible : Visibility.Collapsed;
+        UndoButton.IsEnabled = !busy;
+        if (backTo is not null) ToolTipService.SetToolTip(UndoButton, Strings.UndoTooltip(backTo));
+    }
 
     /// <summary>true = the main button reads "Update now", false = "Check again".</summary>
     public void SetPrimary(bool updateWaiting, bool canSkip = false)
@@ -26,12 +37,14 @@ public sealed partial class ActionBar : UserControl
     {
         PrimaryButton.IsEnabled = !busy;
         SkipButton.IsEnabled = !busy;
+        UndoButton.IsEnabled = !busy;
         LaunchButton.IsEnabled = !busy && VlcLocator.FindVlcExe() is not null;
     }
 
     public void SetLastChecked(DateTime? t) => LastCheckedText.Text = t is { } v ? Strings.LastChecked(v) : "";
 
     private void PrimaryButton_Click(object sender, RoutedEventArgs e) => PrimaryClicked?.Invoke(this, EventArgs.Empty);
+    private void UndoButton_Click(object sender, RoutedEventArgs e) => UndoClicked?.Invoke(this, EventArgs.Empty);
     private void SkipButton_Click(object sender, RoutedEventArgs e) => SkipClicked?.Invoke(this, EventArgs.Empty);
     private void LaunchButton_Click(object sender, RoutedEventArgs e) => VlcProcess.Launch();
     private void ConfigButton_Click(object sender, RoutedEventArgs e) => VlcProcess.OpenConfigFolder();

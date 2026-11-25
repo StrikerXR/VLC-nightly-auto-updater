@@ -77,17 +77,19 @@ public static class InstallerCache
         try { File.SetLastWriteTimeUtc(exe, DateTime.UtcNow); } catch { }
     }
 
-    /// <summary>Keep the newest few installers per architecture; drop the rest plus abandoned partial downloads.</summary>
-    public static void Prune(VlcArch arch, int keep = Keep, string? protect = null)
+    /// <summary>Keep the newest few installers per architecture; drop the rest plus abandoned partial downloads.
+    /// Files listed in <paramref name="protect"/> are never deleted (so the keep count can be exceeded by those).</summary>
+    public static void Prune(VlcArch arch, int keep = Keep, IEnumerable<string?>? protect = null)
     {
         try
         {
             var dir = DirFor(arch);
             if (!Directory.Exists(dir)) return;
 
+            var safe = (protect ?? Array.Empty<string?>()).Where(p => !string.IsNullOrEmpty(p)).Select(p => Path.GetFullPath(p!)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var exes = new DirectoryInfo(dir).GetFiles("*.exe").OrderByDescending(f => f.LastWriteTimeUtc).ToList();
-            foreach (var old in exes.Skip(keep))
-                if (!string.Equals(old.FullName, protect, StringComparison.OrdinalIgnoreCase))
+            foreach (var old in exes.Skip(Math.Max(1, keep)))
+                if (!safe.Contains(old.FullName))
                     Delete(old.FullName);
 
             foreach (var part in new DirectoryInfo(dir).GetFiles("*.part"))
@@ -95,6 +97,19 @@ public static class InstallerCache
                     try { part.Delete(); } catch { }
         }
         catch { /* best-effort */ }
+    }
+
+    /// <summary>The cached installer for a build, or null. Used to keep the previous build safe from pruning.</summary>
+    public static string? FindFor(string folder, VlcArch arch)
+    {
+        try
+        {
+            var dir = DirFor(arch);
+            return Directory.Exists(dir)
+                ? Directory.EnumerateFiles(dir, $"{folder}_*.exe").FirstOrDefault(f => File.Exists(Sidecar(f)))
+                : null;
+        }
+        catch { return null; }
     }
 
     public static (int Count, long Bytes) Stats()

@@ -16,6 +16,9 @@
             <Button Click="ConfigButton_Click" ToolTipService.ToolTip="Open VLC settings folder">
                 <FontIcon Glyph="&#xE838;" FontSize="14" />
             </Button>
+            <Button x:Name="UndoButton" Click="UndoButton_Click" Visibility="Collapsed">
+                <FontIcon Glyph="&#xE7A7;" FontSize="14" />
+            </Button>
             <Button x:Name="SkipButton" Click="SkipButton_Click" Visibility="Collapsed"
                     ToolTipService.ToolTip="Don't install this nightly; wait for the next one">
                 <StackPanel Orientation="Horizontal" Spacing="8">

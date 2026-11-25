@@ -21,6 +21,14 @@ public static class SingleInstance
         catch (AbandonedMutexException) { return true; }
     }
 
+    /// <summary>True if another updater window is open right now (doesn't wait, doesn't take the lock).</summary>
+    public static bool IsRunning()
+    {
+        if (!Mutex.TryOpenExisting(@"Local\VlcNightlyUpdater.SingleInstance", out var m)) return false;
+        m.Dispose();
+        return true;
+    }
+
     /// <summary>Finds the already-open window (by its title, set from AppConfig.AppName) and shows it.</summary>
     public static void FocusExisting()
     {

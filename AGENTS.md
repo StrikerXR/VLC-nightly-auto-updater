@@ -4,10 +4,14 @@ WinUI 3 app (.NET 8, Windows 10 1809+, x64 + ARM64) that keeps VLC's nightly bui
 This file is deliberately short. Open only the file you need (see the map); never read the whole repo.
 
 ## 1. Hard rules (never break)
-* **Workflows:** do not modify `.github/workflows/` unless explicitly told to. (5.0.0 was told to: portable zip + release notes.)
+* **Workflows:** do not modify `.github/workflows/` unless explicitly told to. (5.0.0 was told to: portable zip + release notes. 5.1.0 did not touch them.)
 * **Dependencies:** do not upgrade, downgrade or re-pin existing packages unless told to.
 * **New packages:** look up the exact latest version first. Never guess a version string.
 * **Never touch** `%APPDATA%\vlc` (the user's VLC settings) from code.
+* **Launch links are untrusted input.** Anything can open `vlcnightlyupdater:...`. `LaunchIntent` accepts only known actions and a build
+  name that looks like `yyyyMMdd-HHmm`; keep it that way, and never let a link do more than the app would do when opened normally.
+* **Undo needs the previous installer.** `AppConfig.CacheKeepChoices` never goes below 2 and `PruneCache` protects the current and
+  previous build's installers. Keep both if you touch the cache.
 * **Installer sync:** names in `Config/AppConfig.cs` marked "keep in sync with installer.iss" must match `installer/installer.iss`.
 * **Version:** the single source is `VERSION`. Do not bump it unless asked.
 * **CHANGELOG.md (every agent, every release):** it holds ONLY the notes of the version in `VERSION`. When you ship a change
@@ -43,9 +47,16 @@ This file is deliberately short. Open only the file you need (see the map); neve
 | Change when the what's new dialogs appear     | `MainWindow.WhatsNew.cs`, `MainWindow.SelfUpdate.cs` |
 | Change portable behaviour                     | `Services/Portable.cs` (marker file, data folder); CI "Package portable zip" step |
 | Change skip-build / install history           | `MainWindow.Check.cs`, `MainWindow.Install.cs`, `Views/ActionBar.xaml(.cs)`, `Views/BuildsPanel.xaml(.cs)` |
+| Change "Undo last update"                     | `MainWindow.Undo.cs`, `Views/ActionBar.xaml(.cs)` (needs `PreviousBuild/Hash/Arch` in `AppState`) |
+| Change "wait for VLC to close" / the VLC-running dialog | `MainWindow.Vlc.cs`; poll/grace times in `Config/AppConfig.cs` |
+| Change the first-run "Is this the latest?" question | `MainWindow.FirstRun.cs`, `MainWindow.Check.cs` |
+| Change "Copy diagnostics"                     | `Services/DiagnosticsReport.cs` (text), `MainWindow.Diagnostics.cs` (clipboard), `Views/SettingsPanel.xaml(.cs)` |
+| Change notification buttons / launch links    | `Services/BackgroundCheck.cs` (toast), `Services/LaunchIntent.cs` (links), `App.xaml.cs`, `MainWindow.xaml.cs` |
+| Change the Changes filter                     | `Services/CommitFilter.cs` (rules), `Views/ChangesPanel.xaml(.cs)` |
+| Change how many installers are cached         | `AppConfig.CacheKeepChoices`, `Views/SettingsPanel.xaml(.cs)`, `MainWindow.Install.cs` (`PruneCache`) |
 
 ## 3. Structure rules (keep it cheap for the next agent)
-* **Small files.** Aim for under ~150 lines, hard cap ~250. One topic per file. If a file grows, split it (partial class for `MainWindow`, new `UserControl` for UI).
+* **Small files.** Aim for under ~150 lines, hard cap ~250. (`Services/BackgroundCheck.cs` is already over: move the toast code to its own file before adding more.) One topic per file. If a file grows, split it (partial class for `MainWindow`, new `UserControl` for UI).
 * **Views are dumb.** A view exposes a few public methods/events (`Set…`, `Show…`, `…Clicked`). It never reaches into another view's controls. `MainWindow` is the only place that connects views.
 * **No logic in XAML code-behind beyond wiring.** Network, files, registry, processes live in `Services/`.
 * **No magic values inline.** URLs and numbers → `AppConfig`. Runtime messages → `Strings`. Colors → `Tokens.xaml`. Static labels (button text, tab names, setting titles) stay in the `.xaml` next to the control.

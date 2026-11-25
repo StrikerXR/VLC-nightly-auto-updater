@@ -13,10 +13,14 @@ public sealed partial class SettingsPanel : UserControl
 {
     private AppState _state = new();
     private bool _loading;
+    private readonly string _diagnosticsLabel;
 
     public event EventHandler? RecheckRequested;
     public event EventHandler<string>? AccentChanged;
     public event EventHandler? WhatsNewRequested;
+    public event EventHandler? DiagnosticsRequested;
+    /// <summary>The "installers to keep" choice changed: the cache should be trimmed now.</summary>
+    public event EventHandler? CacheKeepChanged;
 
     public SettingsPanel()
     {
@@ -24,6 +28,8 @@ public sealed partial class SettingsPanel : UserControl
 
         AutoRow.Toggled += (_, _) => Save(s => s.AutoUpdate = AutoRow.IsOn);
         LaunchRow.Toggled += (_, _) => Save(s => s.LaunchAfterUpdate = LaunchRow.IsOn);
+        WaitRow.Toggled += (_, _) => Save(s => s.WaitForVlc = WaitRow.IsOn);
+        _diagnosticsLabel = DiagnosticsLink.Content?.ToString() ?? "";
         SelfRow.Toggled += (_, _) => Save(s => s.AutoUpdateSelf = SelfRow.IsOn);
         WhatsNewRow.Toggled += (_, _) => Save(s => s.ShowWhatsNew = WhatsNewRow.IsOn);
         PreRow.Toggled += (_, _) =>
@@ -40,12 +46,14 @@ public sealed partial class SettingsPanel : UserControl
         _loading = true;
         AutoRow.IsOn = state.AutoUpdate;
         LaunchRow.IsOn = state.LaunchAfterUpdate;
+        WaitRow.IsOn = state.WaitForVlc;
         SelfRow.IsOn = state.AutoUpdateSelf;
         PreRow.IsOn = state.AllowPreRelease;
         WhatsNewRow.IsOn = state.ShowWhatsNew;
         BgRow.IsOn = state.BackgroundCheck;
         BuildArchPicker();
         BuildAccentPicker();
+        BuildCachePicker();
         _loading = false;
 
         ModeText.Text = Portable.IsPortable ? Strings.PortableNote : Strings.InstalledNote;
@@ -59,9 +67,19 @@ public sealed partial class SettingsPanel : UserControl
     {
         ArchPicker.IsEnabled = !busy;
         AccentPicker.IsEnabled = !busy;
+        CachePicker.IsEnabled = !busy;
     }
 
     private void WhatsNewLink_Click(object sender, RoutedEventArgs e) => WhatsNewRequested?.Invoke(this, EventArgs.Empty);
+    private void DiagnosticsLink_Click(object sender, RoutedEventArgs e) => DiagnosticsRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>Shows "Copied" (or "Couldn't copy") on the diagnostics link for a moment, then puts the label back.</summary>
+    public async Task ShowDiagnosticsResultAsync(bool ok)
+    {
+        DiagnosticsLink.Content = ok ? Strings.DiagnosticsCopied : Strings.DiagnosticsFailed;
+        await Task.Delay(2500);
+        DiagnosticsLink.Content = _diagnosticsLabel;
+    }
 
     private void Save(Action<AppState> change)
     {
@@ -111,6 +129,28 @@ public sealed partial class SettingsPanel : UserControl
         Save(s => s.AccentColor = key);
         ThemeService.ApplyAccent(key);
         AccentChanged?.Invoke(this, key);
+    }
+
+    // ---------- installers kept (offline rollback / undo) ----------
+
+    private void BuildCachePicker()
+    {
+        CachePicker.Items.Clear();
+        foreach (var n in AppConfig.CacheKeepChoices)
+            CachePicker.Items.Add(new ComboBoxItem { Content = Strings.CacheKeepChoice(n), Tag = n });
+
+        // A hand-edited value that isn't in the list selects the next larger choice (never silently fewer).
+        var want = _state.CacheKeep;
+        var items = CachePicker.Items.OfType<ComboBoxItem>().ToList();
+        CachePicker.SelectedItem = items.FirstOrDefault(i => (int)i.Tag >= want) ?? items.Last();
+    }
+
+    private void CachePicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || CachePicker.SelectedItem is not ComboBoxItem { Tag: int n }) return;
+        if (_state.CacheKeep == n) return;
+        Save(s => s.CacheKeep = n);
+        CacheKeepChanged?.Invoke(this, EventArgs.Empty);
     }
 
     // ---------- VLC build (ARM64 PCs only) ----------

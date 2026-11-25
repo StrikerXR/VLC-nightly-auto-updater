@@ -46,7 +46,7 @@ public sealed partial class MainWindow
         // Get the installer first while VLC keeps running: only close it right before installing.
         var installer = await EnsureInstallerAsync(build);
 
-        var (closed, wasRunning) = await PrepareVlcAsync();
+        var (closed, wasRunning) = await PrepareVlcAsync(build);
         if (!closed)
         {
             Status.Set(Strings.UpdateCancelled, Strings.VlcStillRunning, Phase.Warn);
@@ -87,6 +87,7 @@ public sealed partial class MainWindow
         {
             _state.PreviousBuild = _state.InstalledBuild;
             _state.PreviousHash = _state.InstalledHash;
+            _state.PreviousArch = _state.InstalledArch; // "Undo last update" needs to know which CPU type to go back to
         }
         _state.InstalledBuild = build.Folder;
         _state.InstalledHash = build.Hash;
@@ -98,7 +99,7 @@ public sealed partial class MainWindow
         StateStore.Save(_state);
         Builds.SetHistory(_state.History);
 
-        InstallerCache.Prune(build.Arch, protect: installer); // keep the last few for offline rollback
+        PruneCache(build.Arch, installer); // keep the last few for offline rollback and undo
         Builds.Refresh();
         Tiles.SetInstalled(build.Folder, actualArch);
 
@@ -106,6 +107,16 @@ public sealed partial class MainWindow
         Status.Set(Strings.Updated, Strings.UpdatedDetail(build.Folder, actualArch, note), Phase.Good);
 
         if (_state.LaunchAfterUpdate || wasRunning) VlcProcess.Launch();
+    }
+
+    /// <summary>Trims the offline cache to the user's setting. The installers of the current and the previous build are never deleted.</summary>
+    private void PruneCache(VlcArch arch, string? protect = null)
+    {
+        string? Cached(string? folder, string? archKey) =>
+            folder is not null && ArchInfo.ParseKey(archKey) == arch ? InstallerCache.FindFor(folder, arch) : null;
+
+        InstallerCache.Prune(arch, _state.CacheKeep,
+            [protect, Cached(_state.InstalledBuild, _state.InstalledArch), Cached(_state.PreviousBuild, _state.PreviousArch)]);
     }
 
     private async Task<string> EnsureInstallerAsync(BuildInfo build)

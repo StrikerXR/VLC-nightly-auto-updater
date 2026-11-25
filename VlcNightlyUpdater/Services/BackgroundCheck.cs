@@ -14,7 +14,8 @@ namespace VlcNightlyUpdater.Services;
 /// While it is off, NOTHING exists: no scheduled task, no startup entry, no service, no registry keys.
 /// While it is on, there is exactly one per-user Windows scheduled task that starts this exe with
 /// --background-check at sign-in and every few hours. That run has no window: it checks for updater and VLC
-/// updates, pre-downloads the verified installer when auto-update is on, and notifies the user.
+/// updates, pre-downloads the verified installer when auto-update is on, and notifies the user. The nightly
+/// notification has two buttons ("Update now", "Skip this build"); see LaunchIntent.cs for how they are handled.
 ///
 /// Everything this class creates is removed again by <see cref="Disable"/>, and installer.iss removes the same
 /// names on uninstall. If you add anything here, add it to both.
@@ -218,6 +219,7 @@ public static class BackgroundCheck
 
         state = StateStore.Load();
         if (!state.BackgroundCheck || state.LastNotifiedBuild == latest.Folder) return;
+        if (state.SkippedBuild == latest.Folder) return; // the user skipped this one (in the app or from a notification)
 
         var preCached = false;
         if (state.AutoUpdate)
@@ -238,19 +240,30 @@ public static class BackgroundCheck
             ? Strings.BackgroundDownloaded(latest.Folder, target)
             : $"{latest.Folder} ({target.Label()}). Open VLC Nightly Updater to install it.";
 
-        if (ShowToast("vlc-update", "vlc", "New VLC nightly available", text))
+        // Buttons: "Update now" opens the app and installs; "Skip this build" is handled without opening a window.
+        var buttons = new[]
+        {
+            (Strings.UpdateNow, $"{Protocol}:update"),
+            (Strings.ToastSkip, $"{Protocol}:skip?build={latest.Folder}")
+        };
+        if (ShowToast("vlc-update", "vlc", "New VLC nightly available", text, buttons))
         {
             state.LastNotifiedBuild = latest.Folder;
             StateStore.Save(state);
         }
     }
 
-    private static bool ShowToast(string tag, string group, string title, string body)
+    /// <summary>Shows a toast. <paramref name="buttons"/> are (label, link) pairs; each link starts this exe (see LaunchIntent).</summary>
+    internal static bool ShowToast(string tag, string group, string title, string body,
+        IEnumerable<(string Label, string Link)>? buttons = null)
     {
         try
         {
             RegisterNotifications();
             static string Esc(string s) => SecurityElement.Escape(s) ?? "";
+            var actions = buttons is null ? "" :
+                "<actions>" + string.Concat(buttons.Select(b =>
+                    $"<action content=\"{Esc(b.Label)}\" arguments=\"{Esc(b.Link)}\" activationType=\"protocol\"/>")) + "</actions>";
             var xml = $"""
                 <toast activationType="protocol" launch="{Protocol}:open">
                   <visual>
@@ -259,6 +272,7 @@ public static class BackgroundCheck
                       <text>{Esc(body)}</text>
                     </binding>
                   </visual>
+                  {actions}
                 </toast>
                 """;
 

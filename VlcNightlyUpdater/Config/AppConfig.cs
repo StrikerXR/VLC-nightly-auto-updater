@@ -44,8 +44,13 @@ public static class AppConfig
     public static readonly TimeSpan HttpTimeout = TimeSpan.FromSeconds(60);
     public static readonly TimeSpan StallTimeout = TimeSpan.FromSeconds(30);
     public const int MaxDownloadAttempts = 6;
-    public const int CacheKeep = 3;                       // installers kept per CPU type for offline rollback
+    public const int CacheKeep = 3;                       // installers kept per CPU type for offline rollback (default; user can change it)
+    public static readonly int[] CacheKeepChoices = [2, 3, 5, 10]; // choices in Settings. Never below 2: current + previous build, so Undo works offline
     public const long MinFreeBytes = 400L * 1024 * 1024;  // refuse to download with less free disk than this
+
+    // ---- waiting for VLC to close ("Install when VLC closes") ----
+    public const int VlcWaitPollMs = 2000;   // how often to look whether VLC has exited
+    public const int VlcWaitGraceMs = 1500;  // pause after VLC exits, so Windows lets go of its files
 
     // ---- auto-update polling & retry ----
     public static readonly TimeSpan AutoCheckInterval = TimeSpan.FromHours(4);
