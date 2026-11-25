@@ -38,6 +38,7 @@ public static class AppConfig
     public const string UpdaterAssetPrefix = "VlcNightlyUpdater-Setup-";
     public const string ChecksumFile = "SHA256SUMS.txt";
     public const int ReleasesToScan = 15; // used when pre-releases are allowed
+    public const int HistoryKeep = 20;    // installs remembered for the Builds tab
 
     // ---- downloads and cache ----
     public static readonly TimeSpan HttpTimeout = TimeSpan.FromSeconds(60);

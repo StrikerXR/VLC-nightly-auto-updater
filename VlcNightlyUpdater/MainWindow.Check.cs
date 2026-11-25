@@ -17,6 +17,7 @@ public sealed partial class MainWindow
     private async Task CheckFlowAsync()
     {
         _pending = null;
+        _pendingIsSwitch = false;
 
         if (Environment.OSVersion.Version.Build < AppConfig.MinWindowsBuild)
         {
@@ -72,7 +73,15 @@ public sealed partial class MainWindow
         if (archSwitch)
         {
             _pending = latest;
+            _pendingIsSwitch = true;
             Status.Set(Strings.SwitchBuild, Strings.SwitchDetail(vlc!.Arch!.Value, target, latest.Folder), Phase.Warn);
+            return;
+        }
+
+        // The user chose to skip exactly this nightly: stay put until a newer one appears.
+        if (_state.SkippedBuild == latest.Folder)
+        {
+            Status.Set(Strings.SkippedTitle, Strings.SkippedDetail(latest.Folder), Phase.Good);
             return;
         }
 

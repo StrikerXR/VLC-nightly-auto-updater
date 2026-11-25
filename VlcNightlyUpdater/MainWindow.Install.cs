@@ -82,6 +82,7 @@ public sealed partial class MainWindow
                     ?? throw new InvalidOperationException(Strings.NoVlcAfter);
         var actualArch = after.Arch ?? build.Arch;
 
+        var from = _state.InstalledBuild;
         if (_state.InstalledBuild != build.Folder)
         {
             _state.PreviousBuild = _state.InstalledBuild;
@@ -90,7 +91,12 @@ public sealed partial class MainWindow
         _state.InstalledBuild = build.Folder;
         _state.InstalledHash = build.Hash;
         _state.InstalledArch = actualArch.Key();
+        _state.SkippedBuild = null; // installed something: any earlier "skip" is moot
+        _state.History.Insert(0, new HistoryEntry { When = DateTime.Now, From = from, To = build.Folder, Arch = actualArch.Label() });
+        if (_state.History.Count > AppConfig.HistoryKeep)
+            _state.History.RemoveRange(AppConfig.HistoryKeep, _state.History.Count - AppConfig.HistoryKeep);
         StateStore.Save(_state);
+        Builds.SetHistory(_state.History);
 
         InstallerCache.Prune(build.Arch, protect: installer); // keep the last few for offline rollback
         Builds.Refresh();

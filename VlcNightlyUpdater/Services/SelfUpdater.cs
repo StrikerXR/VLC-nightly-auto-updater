@@ -6,7 +6,10 @@ using Microsoft.Win32;
 
 namespace VlcNightlyUpdater.Services;
 
-public sealed record SelfUpdateInfo(Version Version, string InstallerName, string InstallerUrl, string Sha256, bool PreRelease);
+/// <param name="Notes">The changelog text of the release (already cut at the end marker).</param>
+/// <param name="PageUrl">The release page on GitHub (the download link for portable copies).</param>
+public sealed record SelfUpdateInfo(Version Version, string InstallerName, string InstallerUrl, string Sha256, bool PreRelease,
+    string Notes = "", string PageUrl = "");
 
 /// <summary>
 /// Updates this app from its own GitHub Releases. Each release carries one setup per CPU type plus a
@@ -72,6 +75,9 @@ public static class SelfUpdater
         return null;
     }
 
+    private static string Text(JsonElement e, string name) =>
+        e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+
     private static bool Flag(JsonElement e, string name) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
 
@@ -107,7 +113,9 @@ public static class SelfUpdater
         var sha = line?.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim();
         return string.IsNullOrEmpty(sha)
             ? null
-            : new SelfUpdateInfo(version, exeName, exeUrl, sha, Flag(release, "prerelease"));
+            : new SelfUpdateInfo(version, exeName, exeUrl, sha, Flag(release, "prerelease"),
+                ReleaseNotes.FromReleaseBody(Text(release, "body")),
+                Text(release, "html_url") is { Length: > 0 } page ? page : AppConfig.RepoUrl + "/releases");
     }
 
     public static async Task<string> DownloadAsync(SelfUpdateInfo info, IProgress<DownloadProgress> progress, CancellationToken ct)

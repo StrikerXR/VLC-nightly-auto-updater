@@ -3,11 +3,12 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Graphics;
 
 namespace VlcNightlyUpdater;
 
-/// <summary>Window look and size: title bar, Mica/acrylic backdrop, icon, start size. Sizes live in AppConfig.</summary>
+/// <summary>Window look and size: title bar, Mica Alt/acrylic backdrop, icon and logo, start size. Sizes live in AppConfig.</summary>
 public sealed partial class MainWindow
 {
     [DllImport("user32.dll")]
@@ -38,6 +39,14 @@ public sealed partial class MainWindow
         if (!File.Exists(icon)) icon = Path.Combine(assets, "app.ico");
         try { AppWindow.SetIcon(icon); } catch { }
 
+        // The same artwork, as a PNG, in our own title bar.
+        try
+        {
+            var logo = Path.Combine(assets, "app-logo.png");
+            if (File.Exists(logo)) LogoImage.Source = new BitmapImage(new Uri(logo));
+        }
+        catch { }
+
         // Size in DIPs -> pixels (never bigger than the screen), then center on the current display.
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var scale = GetDpiForWindow(hwnd) / 96.0;
@@ -54,7 +63,7 @@ public sealed partial class MainWindow
         try
         {
             if (Microsoft.UI.Composition.SystemBackdrops.MicaController.IsSupported())
-                SystemBackdrop = new MicaBackdrop();
+                SystemBackdrop = new MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.BaseAlt };
             else if (Microsoft.UI.Composition.SystemBackdrops.DesktopAcrylicController.IsSupported())
                 SystemBackdrop = new DesktopAcrylicBackdrop();
             else

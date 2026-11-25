@@ -23,6 +23,14 @@
             </Border>
 
             <Border Style="{StaticResource VnuCard}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Recent installs" Style="{StaticResource VnuLabel}" />
+                    <TextBlock x:Name="HistoryText" Style="{StaticResource VnuMono}" FontSize="12"
+                               TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource VnuCard}">
                 <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />

@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using VlcNightlyUpdater.Services;
 using VlcNightlyUpdater.Views;
@@ -29,6 +30,7 @@ public sealed partial class MainWindow : Window
     private BuildInfo? _latest;         // newest build found by the last check
     private SelfUpdateInfo? _selfUpdate;
     private VlcArch _target = ArchInfo.Native;
+    private bool _pendingIsSwitch;  // the waiting update changes CPU type (can't be skipped)
     private bool _busy, _started, _closed;
 
     private CancellationToken Ct => _opCts?.Token ?? _cts.Token;
@@ -40,11 +42,12 @@ public sealed partial class MainWindow : Window
         SetupWindow();
         ApplyAccent();
 
-        VersionText.Text = $"v{Net.CurrentVersion}" + (IsDecember ? " \U0001F384" : "");
+        VersionText.Text = $"v{Net.CurrentVersion}" + (Portable.IsPortable ? Format.Dot + "portable" : "") + (IsDecember ? " \U0001F384" : "");
 
         Settings.Load(_state);
         SelfUpdater.CleanupStale();
         Builds.Refresh();
+        Builds.SetHistory(_state.History);
         Tiles.SetInstalled(_state.InstalledBuild, ArchInfo.ParseKey(_state.InstalledArch));
         Actions.SetLastChecked(_state.LastChecked);
 
@@ -62,6 +65,8 @@ public sealed partial class MainWindow : Window
             await RunGuardedAsync(CheckFlowAsync);
         };
         Settings.AccentChanged += (_, _) => ApplyAccent();
+        Settings.WhatsNewRequested += async (_, _) => await ShowCurrentNotesAsync();
+        Actions.SkipClicked += (_, _) => SkipPendingBuild();
         Builds.InstallRequested += async (_, folder) =>
         {
             _retryTimer?.Stop();
@@ -97,14 +102,34 @@ public sealed partial class MainWindow : Window
         {
             if (_started) return;
             _started = true;
+            await ShowJustUpdatedAsync(); // after an update: what changed (once)
             await RunGuardedAsync(CheckFlowAsync);
         };
+
+        // F5 = Check again
+        var refresh = new KeyboardAccelerator { Key = Windows.System.VirtualKey.F5 };
+        refresh.Invoked += async (_, a) =>
+        {
+            a.Handled = true;
+            if (!_busy) await RunGuardedAsync(CheckFlowAsync);
+        };
+        Root.KeyboardAccelerators.Add(refresh);
+    }
+
+    /// <summary>"Skip this build": remember it, so neither auto-update nor "Update now" offers it again.</summary>
+    private void SkipPendingBuild()
+    {
+        if (_busy || _pendingIsSwitch || _pending is not { } build) return;
+        _state.SkippedBuild = build.Folder;
+        StateStore.Save(_state);
+        _pending = null;
+        Status.Set(Strings.SkippedTitle, Strings.SkippedDetail(build.Folder), Phase.Good);
+        Actions.SetPrimary(updateWaiting: false);
     }
 
     private void ApplyAccent()
     {
         ThemeService.ApplyAccent(_state.AccentColor);
-        BrandBadge.Background = (Brush)Application.Current.Resources["VnuBrandBrush"];
         Status.RefreshTheme();
     }
 
@@ -190,7 +215,7 @@ public sealed partial class MainWindow : Window
                 Status.SetCancel(visible: false);
                 Status.SetBar(false);
                 SetBusy(false);
-                Actions.SetPrimary(updateWaiting: _pending is not null);
+                Actions.SetPrimary(updateWaiting: _pending is not null, canSkip: _pending is not null && !_pendingIsSwitch);
                 _ = RefreshChangesAsync();
             }
         }

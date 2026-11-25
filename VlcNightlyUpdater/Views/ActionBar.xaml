@@ -16,6 +16,13 @@
             <Button Click="ConfigButton_Click" ToolTipService.ToolTip="Open VLC settings folder">
                 <FontIcon Glyph="&#xE838;" FontSize="14" />
             </Button>
+            <Button x:Name="SkipButton" Click="SkipButton_Click" Visibility="Collapsed"
+                    ToolTipService.ToolTip="Don't install this nightly; wait for the next one">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE893;" FontSize="14" />
+                    <TextBlock Text="Skip this build" />
+                </StackPanel>
+            </Button>
             <Button x:Name="LaunchButton" Click="LaunchButton_Click" IsEnabled="False">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <FontIcon Glyph="&#xE768;" FontSize="14" />

@@ -4,6 +4,8 @@
     VnuLabel  small muted caption (section labels, hints, meta lines)
     VnuMono   monospace value (build numbers)
     VnuDivider thin separator line
+    VnuSectionTitle  heading above a group of cards
+    VnuIconChip      tinted rounded square that holds a glyph (tiles, settings rows)
 -->
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -29,6 +31,22 @@
     <Style x:Key="VnuMono" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Consolas" />
         <Setter Property="FontSize" Value="16" />
+    </Style>
+
+    <!-- Small uppercase-free section heading above a group of cards (Settings) -->
+    <Style x:Key="VnuSectionTitle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Opacity" Value="0.75" />
+        <Setter Property="Margin" Value="4,6,0,-4" />
+    </Style>
+
+    <!-- Rounded square behind a small glyph; the brand tint follows the chosen accent color -->
+    <Style x:Key="VnuIconChip" TargetType="Border">
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="Background" Value="{StaticResource VnuBrandTintBrush}" />
     </Style>
 
     <Style x:Key="VnuDivider" TargetType="Rectangle">

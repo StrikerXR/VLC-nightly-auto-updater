@@ -9,7 +9,7 @@
     <RootNamespace>VlcNightlyUpdater</RootNamespace>
     <AssemblyName>VlcNightlyUpdater</AssemblyName>
     <Product>VLC Nightly Updater</Product>
-    <Version Condition="'$(Version)' == ''">4.1.0</Version>
+    <Version Condition="'$(Version)' == ''">5.0.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
@@ -31,14 +31,15 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250602001" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250108002" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2957" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\app-christmas.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\app-logo.png" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The release notes of THIS version, shown in the "What's new" dialog after an update (and offline). -->
+    <Content Include="..\CHANGELOG.md" Link="CHANGELOG.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

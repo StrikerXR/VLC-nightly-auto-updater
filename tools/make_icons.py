@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Generates VlcNightlyUpdater/Assets/app.ico and app-christmas.ico (and a preview PNG).
+Generates VlcNightlyUpdater/Assets/app.ico, app-christmas.ico and app-logo.png (and a preview PNG).
+Style: flat Windows 11 / Fluent look (soft gradient, very light shadow, no glossy rim) so it sits quietly next to other icons.
 
     pip install pillow numpy
     python tools/make_icons.py
@@ -14,10 +15,10 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageChops
 
 # ------------------------------ DESIGN ------------------------------
-BG_TOP, BG_BOTTOM = (255, 178, 70), (230, 92, 0)     # body gradient (brand orange family)
-GLYPH_TOP, GLYPH_BOTTOM = (255, 255, 255), (255, 238, 214)
-SHADOW = (140, 45, 0)                                 # glyph drop shadow tint
-SQUIRCLE_POWER = 5.0                                  # 2 = circle, higher = squarer
+BG_TOP, BG_BOTTOM = (255, 160, 38), (242, 118, 8)     # body gradient: soft, flat-ish brand orange
+GLYPH_TOP, GLYPH_BOTTOM = (255, 255, 255), (255, 244, 230)
+SHADOW = (150, 60, 0)                                 # glyph drop shadow tint (kept very light)
+SQUIRCLE_POWER = 4.0                                  # 2 = circle, higher = squarer
 SIZES = [16, 20, 24, 32, 40, 48, 64, 128, 256]
 HI = 2048                                             # supersampled working canvas
 OUT = Path(__file__).resolve().parent.parent / "VlcNightlyUpdater" / "Assets"
@@ -107,22 +108,22 @@ def master(size_px, christmas=False):
 
     if not full_bleed:      # soft ground shadow
         sh = Image.new("RGBA", (N, N), (0, 0, 0, 0))
-        sh.putalpha(body.point(lambda p: int(p * 0.38)))
-        sh = ImageChops.offset(sh, 0, int(N * 0.018)).filter(ImageFilter.GaussianBlur(N * 0.014))
+        sh.putalpha(body.point(lambda p: int(p * 0.16)))
+        sh = ImageChops.offset(sh, 0, int(N * 0.012)).filter(ImageFilter.GaussianBlur(N * 0.012))
         canvas.alpha_composite(sh)
 
     tile = paint(body, BG_TOP, BG_BOTTOM, N)
     ys, xs = np.mgrid[0:N, 0:N].astype(float)
     # soft light from the top-left
-    glow = np.clip(1 - np.hypot((xs - N * .32) / (N * .75), (ys - N * .05) / (N * .55)), 0, 1) ** 1.6 * 0.30
+    glow = np.clip(1 - np.hypot((xs - N * .32) / (N * .75), (ys - N * .05) / (N * .55)), 0, 1) ** 1.6 * 0.10
     arr = np.array(tile).astype(float)
     arr[..., :3] = arr[..., :3] * (1 - glow[..., None]) + 255 * glow[..., None]
     tile = Image.fromarray(arr.astype(np.uint8), "RGBA")
     # rim: bright on top, dark on bottom, hugging the edge
     inner = body.filter(ImageFilter.MinFilter(int(N * 0.006) * 2 + 1))
     rim = ImageChops.subtract(body, inner)
-    top_fade = (np.clip(1 - ys / (N * .6), 0, 1) * 150).astype(np.uint8)
-    bot_fade = (np.clip((ys / N - .55) / .45, 0, 1) * 70).astype(np.uint8)
+    top_fade = (np.clip(1 - ys / (N * .6), 0, 1) * 55).astype(np.uint8)
+    bot_fade = (np.clip((ys / N - .55) / .45, 0, 1) * 0).astype(np.uint8)
     for fade, col in ((top_fade, (255, 255, 255)), (bot_fade, (120, 40, 0))):
         a = ImageChops.multiply(rim, Image.fromarray(fade, "L"))
         layer = Image.new("RGBA", (N, N), col + (0,)); layer.putalpha(a)
@@ -136,7 +137,7 @@ def master(size_px, christmas=False):
         g = g.resize((int(N * k), int(N * k)), Image.LANCZOS)
         pad = Image.new("L", (N, N), 0); o = (N - g.width) // 2; pad.paste(g, (o, o)); g = pad
     shadow = Image.new("RGBA", (N, N), SHADOW + (0,))
-    shadow.putalpha(ImageChops.offset(g, 0, int(N * .016)).filter(ImageFilter.GaussianBlur(N * .012)).point(lambda p: int(p * .55)))
+    shadow.putalpha(ImageChops.offset(g, 0, int(N * .016)).filter(ImageFilter.GaussianBlur(N * .012)).point(lambda p: int(p * .20)))
     canvas.alpha_composite(shadow)
     canvas.alpha_composite(paint(g, GLYPH_TOP, GLYPH_BOTTOM, N))
 
@@ -180,3 +181,6 @@ if __name__ == "__main__":
         if "--preview" in sys.argv:
             master(512, xmas).save(OUT.parent.parent / "tools" / (name.replace(".ico", "-preview.png")))
         print("wrote", OUT / name)
+    # In-app logo (title bar etc.): same artwork, no December hat, so it reads cleanly at 20-40 px
+    master(256, False).save(OUT / "app-logo.png")
+    print("wrote", OUT / "app-logo.png")

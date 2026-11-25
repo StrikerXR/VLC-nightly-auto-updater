@@ -12,6 +12,17 @@ public sealed partial class ToggleRow : UserControl
 
     public ToggleRow() => InitializeComponent();
 
+    /// <summary>Segoe Fluent Icons glyph shown in a tinted chip on the left. Leave unset for no icon.</summary>
+    public string Glyph
+    {
+        get => GlyphIcon.Glyph;
+        set
+        {
+            GlyphIcon.Glyph = value;
+            IconChip.Visibility = string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
+        }
+    }
+
     public string Title { get => TitleText.Text; set => TitleText.Text = value; }
 
     public string Hint

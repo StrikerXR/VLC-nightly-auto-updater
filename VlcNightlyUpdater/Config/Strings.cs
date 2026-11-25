@@ -11,6 +11,7 @@ public static class Strings
     // ---- generic ----
     public const string Cancel = "Cancel";
     public const string Ok = "OK";
+    public const string Close = "Close";
 
     // ---- check flow ----
     public const string OsTooOld = "Windows 10 (version 1809) or newer required";
@@ -82,6 +83,20 @@ public static class Strings
     public static string SelfAvailable(SelfUpdateInfo i) =>
         $"Version {i.Version}{(i.PreRelease ? " (pre-release)" : "")} is available (you have {Net.CurrentVersion}).";
     public static string SelfFailed(string why) => $"Automatic update failed: {why}";
+    public static string SelfAvailablePortable(SelfUpdateInfo i) =>
+        $"Version {i.Version} is available (you have {Net.CurrentVersion}). This portable copy doesn't update itself: download the new zip.";
+    public const string UpdateNow = "Update now";
+
+    // ---- "What's new" dialogs ----
+    public static string UpdateDialogTitle(Version v) => $"VLC Nightly Updater {v} is out";
+    public const string UpdateAndRestart = "Update and restart";
+    public const string OpenDownloadPage = "Open download page";
+    public const string Later = "Later";
+    public const string GotIt = "Got it";
+    public const string NoNotes = "No release notes were published for this version.";
+    public static string JustUpdatedTitle(Version v) => $"Updated to {v}";
+    public static string JustUpdatedRange(string from, string to) => $"v{from}  \u2192  v{to}";
+    public static string WhatsNewTitle(Version v) => $"What's new in {v}";
 
     // ---- changes panel / tiles ----
     public const string ChangesNone = "Nothing to compare yet. When a newer nightly is out, the commits since your build show up here.";
@@ -115,4 +130,16 @@ public static class Strings
     public static string CacheInfo(int n, long bytes) =>
         $"{n} cached installer{(n == 1 ? "" : "s")}{Format.Dot}{Format.Bytes(bytes)} (for offline rollback)";
     public static string LastChecked(DateTime t) => $"Last checked {t:t}";
+
+    // ---- installed vs portable ----
+    public const string PortableNote = "Portable copy: settings and cached installers live in the Data folder next to the app. It never installs itself over anything.";
+    public const string InstalledNote = "Installed copy.";
+
+    // ---- skip a build / history ----
+    public const string SkippedTitle = "Build skipped";
+    public static string SkippedDetail(string folder) =>
+        $"{folder} was skipped. You'll get the next nightly. You can still install it from the Builds tab.";
+    public const string HistoryNone = "No installs yet. Updates you make here are listed with their dates.";
+    public static string HistoryLine(HistoryEntry e) =>
+        Format.Join($"{e.When:MMM d, HH:mm}", $"{e.From ?? "\u2014"}  \u2192  {e.To}", e.Arch);
 }

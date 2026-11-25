@@ -33,9 +33,30 @@ public sealed class AppState
     /// <summary>Chosen accent color: "orange" (default), "system", "blue", "teal", "green", "purple", "pink", "red", "amber".</summary>
     public string AccentColor { get; set; } = "orange";
 
+    /// <summary>true = show the full "What's new" dialog before updating this updater, and once after it was updated.</summary>
+    public bool ShowWhatsNew { get; set; } = true;
+
+    // ---- history & skipping ----
+    /// <summary>A nightly the user chose to skip. Treated as "not newer" until a newer nightly shows up.</summary>
+    public string? SkippedBuild { get; set; }
+    /// <summary>Last installs, newest first (capped at <see cref="AppConfig.HistoryKeep"/>). Shown in the Builds tab.</summary>
+    public List<HistoryEntry> History { get; set; } = new();
+
     // ---- bookkeeping ----
+    /// <summary>The updater version that last ran. A different value on launch means "just updated": show What's new.</summary>
+    public string? LastSeenVersion { get; set; }
+
     /// <summary>Newest build the background check already notified about (so it only tells you once).</summary>
     public string? LastNotifiedBuild { get; set; }
     /// <summary>Newest updater version the background check already notified about.</summary>
     public string? LastNotifiedSelfVersion { get; set; }
+}
+
+/// <summary>One line of the install history. A plain class so System.Text.Json round-trips it without ceremony.</summary>
+public sealed class HistoryEntry
+{
+    public DateTime When { get; set; }
+    public string? From { get; set; }
+    public string To { get; set; } = "";
+    public string Arch { get; set; } = "";
 }

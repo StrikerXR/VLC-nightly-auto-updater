@@ -17,10 +17,7 @@
         <!-- Custom title area (drag region). Native min/close buttons overlay on the right. -->
         <Grid x:Name="TitleBarArea" Padding="16,0,0,0">
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <Border x:Name="BrandBadge" Width="22" Height="22" CornerRadius="{StaticResource VnuChipRadius}"
-                        Background="{StaticResource VnuBrandBrush}">
-                    <FontIcon Glyph="&#xE896;" FontSize="12" Foreground="{StaticResource VnuOnBrandBrush}" />
-                </Border>
+                <Image x:Name="LogoImage" Width="20" Height="20" VerticalAlignment="Center" />
                 <TextBlock Text="VLC Nightly Updater" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
                 <TextBlock x:Name="VersionText" Style="{StaticResource CaptionTextBlockStyle}"
                            VerticalAlignment="Center" Opacity="0.5" />
@@ -28,6 +25,12 @@
         </Grid>
 
         <Grid Grid.Row="1" Padding="24,4,24,20" RowSpacing="12">
+            <!-- The only motion in the app: the blocks glide in one after another when the window opens. -->
+            <Grid.ChildrenTransitions>
+                <TransitionCollection>
+                    <EntranceThemeTransition IsStaggeringEnabled="True" FromVerticalOffset="18" />
+                </TransitionCollection>
+            </Grid.ChildrenTransitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" /> <!-- banner + status -->
                 <RowDefinition Height="Auto" /> <!-- tiles -->
@@ -50,9 +53,15 @@
             <v:BuildTiles x:Name="Tiles" Grid.Row="1" />
 
             <SelectorBar x:Name="Tabs" Grid.Row="2" SelectionChanged="Tabs_SelectionChanged">
-                <SelectorBarItem Text="Changes" IsSelected="True" />
-                <SelectorBarItem Text="Settings" />
-                <SelectorBarItem Text="Builds" />
+                <SelectorBarItem Text="Changes" IsSelected="True">
+                    <SelectorBarItem.Icon><FontIcon Glyph="&#xE81C;" /></SelectorBarItem.Icon>
+                </SelectorBarItem>
+                <SelectorBarItem Text="Settings">
+                    <SelectorBarItem.Icon><FontIcon Glyph="&#xE713;" /></SelectorBarItem.Icon>
+                </SelectorBarItem>
+                <SelectorBarItem Text="Builds">
+                    <SelectorBarItem.Icon><FontIcon Glyph="&#xE8F1;" /></SelectorBarItem.Icon>
+                </SelectorBarItem>
             </SelectorBar>
 
             <!-- One panel visible at a time (see Tabs_SelectionChanged). Add a tab = SelectorBarItem + panel + one case. -->

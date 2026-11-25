@@ -7,8 +7,10 @@ public static class StateStore
 {
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
-    public static readonly string Dir =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VlcNightlyUpdater");
+    /// <summary>%LOCALAPPDATA%\VlcNightlyUpdater, or the Data folder next to the exe in a portable copy.</summary>
+    public static readonly string Dir = Portable.IsPortable
+        ? Portable.DataDir
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VlcNightlyUpdater");
     private static readonly string FilePath = Path.Combine(Dir, "state.json");
 
     public static AppState Load()

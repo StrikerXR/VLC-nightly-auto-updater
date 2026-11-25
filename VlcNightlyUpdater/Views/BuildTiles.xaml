@@ -9,10 +9,10 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="0.7*" />
+            <ColumnDefinition Width="0.85*" />
         </Grid.ColumnDefinitions>
-        <v:Tile x:Name="Installed" Label="INSTALLED BUILD" />
-        <v:Tile x:Name="Latest" Grid.Column="1" Label="LATEST NIGHTLY" />
-        <v:Tile x:Name="Behind" Grid.Column="2" Label="BEHIND" />
+        <v:Tile x:Name="Installed" Label="INSTALLED BUILD" Glyph="&#xE73E;" />
+        <v:Tile x:Name="Latest" Grid.Column="1" Label="LATEST NIGHTLY" Glyph="&#xE896;" />
+        <v:Tile x:Name="Behind" Grid.Column="2" Label="BEHIND" Glyph="&#xE81C;" />
     </Grid>
 </UserControl>

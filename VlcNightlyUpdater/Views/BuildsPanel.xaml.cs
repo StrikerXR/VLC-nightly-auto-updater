@@ -28,6 +28,13 @@ public sealed partial class BuildsPanel : UserControl
         FillPicker();
     }
 
+    /// <summary>Fills the "Recent installs" card (newest first).</summary>
+    public void SetHistory(IEnumerable<HistoryEntry> entries)
+    {
+        var lines = entries.Select(Strings.HistoryLine).ToList();
+        HistoryText.Text = lines.Count == 0 ? Strings.HistoryNone : string.Join("\n", lines);
+    }
+
     public void SetBusy(bool busy)
     {
         _busy = busy;

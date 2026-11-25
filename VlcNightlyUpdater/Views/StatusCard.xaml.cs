@@ -1,6 +1,8 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Windows.Foundation;
+using Windows.UI;
 
 namespace VlcNightlyUpdater.Views;
 
@@ -37,6 +39,22 @@ public sealed partial class StatusCard : UserControl
         StatusIcon.Foreground = (Brush)Application.Current.Resources[$"VnuPhase{_phase}Brush"];
         IconBadge.Background = (Brush)Application.Current.Resources[$"VnuPhase{_phase}TintBrush"];
         Bar.Foreground = (Brush)Application.Current.Resources["VnuBrandBrush"];
+
+        // Soft diagonal wash in the phase color: strongest top-left, gone by three quarters of the way across.
+        if (Application.Current.Resources[$"VnuPhase{_phase}Brush"] is SolidColorBrush phase)
+        {
+            var c = phase.Color;
+            Wash.Background = new LinearGradientBrush
+            {
+                StartPoint = new Point(0, 0),
+                EndPoint = new Point(1, 1),
+                GradientStops =
+                {
+                    new GradientStop { Color = Color.FromArgb(0x3C, c.R, c.G, c.B), Offset = 0 },
+                    new GradientStop { Color = Color.FromArgb(0x00, c.R, c.G, c.B), Offset = 0.75 }
+                }
+            };
+        }
     }
 
     public void SetTitle(string title) => TitleText.Text = title;

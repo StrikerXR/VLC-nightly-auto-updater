@@ -16,6 +16,7 @@ public sealed partial class SettingsPanel : UserControl
 
     public event EventHandler? RecheckRequested;
     public event EventHandler<string>? AccentChanged;
+    public event EventHandler? WhatsNewRequested;
 
     public SettingsPanel()
     {
@@ -24,6 +25,7 @@ public sealed partial class SettingsPanel : UserControl
         AutoRow.Toggled += (_, _) => Save(s => s.AutoUpdate = AutoRow.IsOn);
         LaunchRow.Toggled += (_, _) => Save(s => s.LaunchAfterUpdate = LaunchRow.IsOn);
         SelfRow.Toggled += (_, _) => Save(s => s.AutoUpdateSelf = SelfRow.IsOn);
+        WhatsNewRow.Toggled += (_, _) => Save(s => s.ShowWhatsNew = WhatsNewRow.IsOn);
         PreRow.Toggled += (_, _) =>
         {
             Save(s => s.AllowPreRelease = PreRow.IsOn);
@@ -40,11 +42,13 @@ public sealed partial class SettingsPanel : UserControl
         LaunchRow.IsOn = state.LaunchAfterUpdate;
         SelfRow.IsOn = state.AutoUpdateSelf;
         PreRow.IsOn = state.AllowPreRelease;
+        WhatsNewRow.IsOn = state.ShowWhatsNew;
         BgRow.IsOn = state.BackgroundCheck;
         BuildArchPicker();
         BuildAccentPicker();
         _loading = false;
 
+        ModeText.Text = Portable.IsPortable ? Strings.PortableNote : Strings.InstalledNote;
         RepoLink.NavigateUri = new Uri(AppConfig.RepoUrl);
         ReleasesLink.NavigateUri = new Uri(AppConfig.RepoUrl + "/releases");
         SyncBackground();
@@ -56,6 +60,8 @@ public sealed partial class SettingsPanel : UserControl
         ArchPicker.IsEnabled = !busy;
         AccentPicker.IsEnabled = !busy;
     }
+
+    private void WhatsNewLink_Click(object sender, RoutedEventArgs e) => WhatsNewRequested?.Invoke(this, EventArgs.Empty);
 
     private void Save(Action<AppState> change)
     {

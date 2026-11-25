@@ -4,33 +4,15 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:v="using:VlcNightlyUpdater.Views">
 
-    <!-- Settings tab. One ToggleRow per boolean in AppState; wiring lives in SettingsPanel.xaml.cs. -->
+    <!-- Settings tab: grouped cards. One ToggleRow per boolean in AppState; wiring lives in SettingsPanel.xaml.cs. -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="12">
+            <TextBlock Text="VLC" Style="{StaticResource VnuSectionTitle}" />
             <Border Style="{StaticResource VnuCard}">
                 <StackPanel Spacing="14">
-                    <v:ToggleRow x:Name="AutoRow" Title="Update VLC automatically"
+                    <v:ToggleRow x:Name="AutoRow" Glyph="&#xE895;" Title="Update VLC automatically"
                                  Hint="Installs a new nightly as soon as this app opens." />
-                    <v:ToggleRow x:Name="LaunchRow" Title="Open VLC after updating" />
-
-                    <Rectangle Style="{StaticResource VnuDivider}" />
-
-                    <v:ToggleRow x:Name="SelfRow" Title="Keep this updater up to date" />
-                    <v:ToggleRow x:Name="PreRow" Title="Include pre-releases"
-                                 Hint="Updater only. Gets whichever version is newest, even if it is a pre-release." />
-
-                    <Rectangle Style="{StaticResource VnuDivider}" />
-
-                    <v:ToggleRow x:Name="BgRow" Title="Notify me about new nightlies" />
-                </StackPanel>
-            </Border>
-
-            <!-- Accent color selection -->
-            <Border Style="{StaticResource VnuCard}">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="Accent color" Style="{StaticResource VnuLabel}" />
-                    <ComboBox x:Name="AccentPicker" HorizontalAlignment="Stretch"
-                              SelectionChanged="AccentPicker_SelectionChanged" />
+                    <v:ToggleRow x:Name="LaunchRow" Glyph="&#xE768;" Title="Open VLC after updating" />
                 </StackPanel>
             </Border>
 
@@ -43,9 +25,34 @@
                 </StackPanel>
             </Border>
 
-            <StackPanel Orientation="Horizontal" Spacing="4">
-                <HyperlinkButton x:Name="RepoLink" Content="GitHub" />
-                <HyperlinkButton x:Name="ReleasesLink" Content="Releases" />
+            <TextBlock Text="This updater" Style="{StaticResource VnuSectionTitle}" />
+            <Border Style="{StaticResource VnuCard}">
+                <StackPanel Spacing="14">
+                    <v:ToggleRow x:Name="SelfRow" Glyph="&#xE777;" Title="Keep this updater up to date" />
+                    <v:ToggleRow x:Name="WhatsNewRow" Glyph="&#xE789;" Title="Show what's new when it updates"
+                                 Hint="A full dialog with the release notes. Off: updates install quietly." />
+                    <v:ToggleRow x:Name="PreRow" Glyph="&#xE7C1;" Title="Include pre-releases"
+                                 Hint="Updater only. Gets whichever version is newest, even if it is a pre-release." />
+                    <v:ToggleRow x:Name="BgRow" Glyph="&#xEA8F;" Title="Notify me about new nightlies" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Appearance" Style="{StaticResource VnuSectionTitle}" />
+            <Border Style="{StaticResource VnuCard}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Accent color" Style="{StaticResource VnuLabel}" />
+                    <ComboBox x:Name="AccentPicker" HorizontalAlignment="Stretch"
+                              SelectionChanged="AccentPicker_SelectionChanged" />
+                </StackPanel>
+            </Border>
+
+            <StackPanel Spacing="2">
+                <TextBlock x:Name="ModeText" Style="{StaticResource VnuLabel}" TextWrapping="Wrap" Margin="4,0,0,0" />
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <HyperlinkButton x:Name="WhatsNewLink" Content="What's new in this version" Click="WhatsNewLink_Click" />
+                    <HyperlinkButton x:Name="RepoLink" Content="GitHub" />
+                    <HyperlinkButton x:Name="ReleasesLink" Content="Releases" />
+                </StackPanel>
             </StackPanel>
         </StackPanel>
     </ScrollViewer>
