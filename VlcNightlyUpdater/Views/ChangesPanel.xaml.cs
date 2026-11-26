@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using VlcNightlyUpdater.Services;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace VlcNightlyUpdater.Views;
 
@@ -33,6 +34,35 @@ public sealed partial class ChangesPanel : UserControl
         GitLabLink.Visibility = Visibility.Visible;
         FilterBar.Visibility = log.Commits.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         Render();
+    }
+
+    /// <summary>Puts the cursor in the filter box (Ctrl+F). Does nothing while there is no list.</summary>
+    public void FocusFilter()
+    {
+        if (FilterBar.Visibility == Visibility.Visible) FilterBox.Focus(FocusState.Programmatic);
+    }
+
+    private static void CopyText(string text)
+    {
+        try
+        {
+            var package = new DataPackage();
+            package.SetText(text);
+            Clipboard.SetContent(package);
+        }
+        catch { /* clipboard busy: nothing to do */ }
+    }
+
+    private async void CopyListLink_Click(object sender, RoutedEventArgs e)
+    {
+        if (_log is not { } log) return;
+        var hide = NoiseCheck.IsChecked == true;
+        var lines = log.Commits.Where(c => CommitFilter.Matches(c, FilterBox.Text, hide)).Select(c => $"{c.ShortId} {c.Title}");
+        CopyText(string.Join("\n", lines));
+
+        CopyListLink.Content = Strings.Copied;
+        await Task.Delay(1500);
+        CopyListLink.Content = Strings.CopyList;
     }
 
     private void FilterBox_TextChanged(object sender, TextChangedEventArgs e) => Render();
@@ -86,6 +116,20 @@ public sealed partial class ChangesPanel : UserControl
 
     private static UIElement CommitRow(CommitInfo c)
     {
+        var menu = new MenuFlyout();
+        var copyId = new MenuFlyoutItem { Text = Strings.CopyId };
+        copyId.Click += (_, _) => CopyText(c.ShortId);
+        var copyTitle = new MenuFlyoutItem { Text = Strings.CopyTitle };
+        copyTitle.Click += (_, _) => CopyText(c.Title);
+        menu.Items.Add(copyId);
+        menu.Items.Add(copyTitle);
+        if (Uri.TryCreate(c.Url, UriKind.Absolute, out var link))
+        {
+            var copyLink = new MenuFlyoutItem { Text = Strings.CopyLink };
+            copyLink.Click += (_, _) => CopyText(link.ToString());
+            menu.Items.Add(copyLink);
+        }
+
         var title = new TextBlock { Text = c.Title, TextWrapping = TextWrapping.Wrap };
         UIElement head = Uri.TryCreate(c.Url, UriKind.Absolute, out var uri)
             ? new HyperlinkButton { Padding = new Thickness(0), NavigateUri = uri, Content = title, HorizontalAlignment = HorizontalAlignment.Left }
@@ -96,6 +140,7 @@ public sealed partial class ChangesPanel : UserControl
         var row = new StackPanel { Spacing = 0 };
         row.Children.Add(head);
         row.Children.Add(new TextBlock { Text = meta, Style = (Style)Application.Current.Resources["VnuLabel"] });
+        row.ContextFlyout = menu; // right-click a commit to copy its ID, title or link
         return row;
     }
 }

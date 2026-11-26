@@ -19,6 +19,12 @@
                         <Button x:Name="InstallButton" Grid.Column="1" Content="Install" IsEnabled="False"
                                 Click="InstallButton_Click" />
                     </Grid>
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <HyperlinkButton x:Name="OpenBuildLink" Content="Open build folder online" IsEnabled="False"
+                                         Click="OpenBuildLink_Click" Padding="0,2" />
+                        <HyperlinkButton x:Name="CopyBuildLink" Content="Copy build name" IsEnabled="False"
+                                         Click="CopyBuildLink_Click" Padding="8,2" />
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
@@ -30,14 +36,32 @@
                 </StackPanel>
             </Border>
 
+            <!-- A skipped build is hidden from updates; this is the way to bring it back without installing something else. -->
             <Border Style="{StaticResource VnuCard}">
                 <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="CacheText" VerticalAlignment="Center" Style="{StaticResource VnuLabel}" />
-                    <Button x:Name="ClearButton" Grid.Column="1" Content="Clear cache" Click="ClearButton_Click" />
+                    <TextBlock x:Name="SkippedText" VerticalAlignment="Center" Style="{StaticResource VnuLabel}" TextWrapping="Wrap" />
+                    <Button x:Name="UnskipButton" Grid.Column="1" Content="Stop skipping" Visibility="Collapsed"
+                            Click="UnskipButton_Click" />
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource VnuCard}">
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="CacheText" VerticalAlignment="Center" Style="{StaticResource VnuLabel}" TextWrapping="Wrap" />
+                    <Button x:Name="OpenCacheButton" Grid.Column="1" Click="OpenCacheButton_Click"
+                            ToolTipService.ToolTip="Open the folder with the saved installers">
+                        <FontIcon Glyph="&#xE838;" FontSize="14" />
+                    </Button>
+                    <Button x:Name="ClearButton" Grid.Column="2" Content="Clear cache" Click="ClearButton_Click" />
                 </Grid>
             </Border>
         </StackPanel>

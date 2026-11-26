@@ -29,6 +29,15 @@
                 </StackPanel>
             </Border>
 
+            <!-- How often the open window looks for a new nightly by itself. -->
+            <Border Style="{StaticResource VnuCard}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Check for new nightlies while this window is open" Style="{StaticResource VnuLabel}" />
+                    <ComboBox x:Name="IntervalPicker" HorizontalAlignment="Stretch"
+                              SelectionChanged="IntervalPicker_SelectionChanged" />
+                </StackPanel>
+            </Border>
+
             <!-- Only shown on ARM64 PCs, where there are two VLC builds to choose from. -->
             <Border x:Name="ArchCard" Style="{StaticResource VnuCard}" Visibility="Collapsed">
                 <StackPanel Spacing="8">
@@ -56,6 +65,8 @@
                     <TextBlock Text="Accent color" Style="{StaticResource VnuLabel}" />
                     <ComboBox x:Name="AccentPicker" HorizontalAlignment="Stretch"
                               SelectionChanged="AccentPicker_SelectionChanged" />
+                    <v:ToggleRow x:Name="TopRow" Glyph="&#xE840;" Title="Keep this window on top"
+                                 Hint="Handy while you watch the download. Off: it behaves like any other window." />
                 </StackPanel>
             </Border>
 
@@ -65,6 +76,7 @@
                     <HyperlinkButton x:Name="WhatsNewLink" Content="What's new in this version" Click="WhatsNewLink_Click" />
                     <HyperlinkButton x:Name="DiagnosticsLink" Content="Copy diagnostics" Click="DiagnosticsLink_Click"
                                      ToolTipService.ToolTip="Copies version, build and settings info to paste into a bug report" />
+                    <HyperlinkButton x:Name="ResetLink" Content="Reset settings" Click="ResetLink_Click" />
                     <HyperlinkButton x:Name="RepoLink" Content="GitHub" />
                     <HyperlinkButton x:Name="ReleasesLink" Content="Releases" />
                 </StackPanel>

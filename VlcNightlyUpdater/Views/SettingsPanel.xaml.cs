@@ -21,6 +21,12 @@ public sealed partial class SettingsPanel : UserControl
     public event EventHandler? DiagnosticsRequested;
     /// <summary>The "installers to keep" choice changed: the cache should be trimmed now.</summary>
     public event EventHandler? CacheKeepChanged;
+    /// <summary>The "keep on top" switch was flipped by the user.</summary>
+    public event EventHandler<bool>? AlwaysOnTopChanged;
+    /// <summary>The check interval changed (hours).</summary>
+    public event EventHandler<int>? CheckIntervalChanged;
+    /// <summary>"Reset settings" was pressed (MainWindow asks first and does the work).</summary>
+    public event EventHandler? ResetRequested;
 
     public SettingsPanel()
     {
@@ -37,6 +43,11 @@ public sealed partial class SettingsPanel : UserControl
             Save(s => s.AllowPreRelease = PreRow.IsOn);
             RecheckRequested?.Invoke(this, EventArgs.Empty); // new setting changes which updater version counts as "newest"
         };
+        TopRow.Toggled += (_, _) =>
+        {
+            Save(s => s.AlwaysOnTop = TopRow.IsOn);
+            AlwaysOnTopChanged?.Invoke(this, TopRow.IsOn);
+        };
         BgRow.Toggled += async (_, _) => await ApplyBackgroundAsync(BgRow.IsOn);
     }
 
@@ -51,6 +62,8 @@ public sealed partial class SettingsPanel : UserControl
         PreRow.IsOn = state.AllowPreRelease;
         WhatsNewRow.IsOn = state.ShowWhatsNew;
         BgRow.IsOn = state.BackgroundCheck;
+        TopRow.IsOn = state.AlwaysOnTop;
+        BuildIntervalPicker();
         BuildArchPicker();
         BuildAccentPicker();
         BuildCachePicker();
@@ -68,6 +81,30 @@ public sealed partial class SettingsPanel : UserControl
         ArchPicker.IsEnabled = !busy;
         AccentPicker.IsEnabled = !busy;
         CachePicker.IsEnabled = !busy;
+        IntervalPicker.IsEnabled = !busy;
+        ResetLink.IsEnabled = !busy;
+    }
+
+    private void ResetLink_Click(object sender, RoutedEventArgs e) => ResetRequested?.Invoke(this, EventArgs.Empty);
+
+    // ---------- check interval ----------
+
+    private void BuildIntervalPicker()
+    {
+        IntervalPicker.Items.Clear();
+        foreach (var h in AppConfig.AutoCheckChoices)
+            IntervalPicker.Items.Add(new ComboBoxItem { Content = Strings.AutoCheckChoice(h), Tag = h });
+
+        var items = IntervalPicker.Items.OfType<ComboBoxItem>().ToList();
+        IntervalPicker.SelectedItem = items.FirstOrDefault(i => (int)i.Tag >= _state.AutoCheckHours) ?? items.Last();
+    }
+
+    private void IntervalPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || IntervalPicker.SelectedItem is not ComboBoxItem { Tag: int h }) return;
+        if (_state.AutoCheckHours == h) return;
+        Save(s => s.AutoCheckHours = h);
+        CheckIntervalChanged?.Invoke(this, h);
     }
 
     private void WhatsNewLink_Click(object sender, RoutedEventArgs e) => WhatsNewRequested?.Invoke(this, EventArgs.Empty);

@@ -49,6 +49,8 @@ public static class DiagnosticsReport
         Line("  Background", OnOff(s.BackgroundCheck));
         Line("  CPU override", s.ArchOverride);
         Line("  Cache keeps", s.CacheKeep.ToString());
+        Line("  Check every", $"{s.AutoCheckHours} h");
+        Line("  On top", OnOff(s.AlwaysOnTop));
 
         var (count, bytes) = InstallerCache.Stats();
         Line("Cache", $"{count} installer{(count == 1 ? "" : "s")} · {Format.Bytes(bytes)}");

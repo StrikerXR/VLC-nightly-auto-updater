@@ -53,7 +53,9 @@ public static class AppConfig
     public const int VlcWaitGraceMs = 1500;  // pause after VLC exits, so Windows lets go of its files
 
     // ---- auto-update polling & retry ----
-    public static readonly TimeSpan AutoCheckInterval = TimeSpan.FromHours(4);
+    public const int AutoCheckHours = 4;                              // default; user can change it in Settings
+    public static readonly int[] AutoCheckChoices = [1, 2, 4, 8, 24]; // hours, choices in Settings
+    public static TimeSpan AutoCheckInterval => TimeSpan.FromHours(AutoCheckHours);
     public static readonly TimeSpan NetworkRetryDelay = TimeSpan.FromSeconds(15);
 
     // ---- optional background check. KEEP IN SYNC with installer.iss [Code] (it removes the same names) ----

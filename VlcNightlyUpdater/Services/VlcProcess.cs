@@ -27,6 +27,13 @@ public static class VlcProcess
         Process.Start(new ProcessStartInfo("explorer.exe", $"\"{dir}\"") { UseShellExecute = true });
     }
 
+    /// <summary>Opens any folder in Explorer. Does nothing if it doesn't exist.</summary>
+    public static void OpenFolder(string dir)
+    {
+        if (!Directory.Exists(dir)) return;
+        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{dir}\"") { UseShellExecute = true });
+    }
+
     /// <summary>Asks VLC to close like a user would (lets it save its settings).</summary>
     public static void CloseGently() => ForEach(p => p.CloseMainWindow());
 

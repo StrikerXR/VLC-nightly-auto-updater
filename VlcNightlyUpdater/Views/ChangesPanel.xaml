@@ -30,9 +30,12 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBox x:Name="FilterBox" PlaceholderText="Filter by text or author…"
                          TextChanged="FilterBox_TextChanged" />
+                <HyperlinkButton x:Name="CopyListLink" Grid.Column="2" Content="Copy list" Click="CopyListLink_Click"
+                                 ToolTipService.ToolTip="Copies the commits shown (ID and title) to the clipboard" />
                 <CheckBox x:Name="NoiseCheck" Grid.Column="1" Content="Hide merges and translations" MinWidth="0"
                           Checked="NoiseCheck_Changed" Unchecked="NoiseCheck_Changed" />
             </Grid>

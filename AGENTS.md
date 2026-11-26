@@ -4,7 +4,7 @@ WinUI 3 app (.NET 8, Windows 10 1809+, x64 + ARM64) that keeps VLC's nightly bui
 This file is deliberately short. Open only the file you need (see the map); never read the whole repo.
 
 ## 1. Hard rules (never break)
-* **Workflows:** do not modify `.github/workflows/` unless explicitly told to. (5.0.0 was told to: portable zip + release notes. 5.1.0 did not touch them.)
+* **Workflows:** do not modify `.github/workflows/` unless explicitly told to. (5.0.0 was told to: portable zip + release notes. 5.1.0 and 5.2.1 did not touch them.)
 * **Dependencies:** do not upgrade, downgrade or re-pin existing packages unless told to.
 * **New packages:** look up the exact latest version first. Never guess a version string.
 * **Never touch** `%APPDATA%\vlc` (the user's VLC settings) from code.
@@ -53,6 +53,8 @@ This file is deliberately short. Open only the file you need (see the map); neve
 | Change "Copy diagnostics"                     | `Services/DiagnosticsReport.cs` (text), `MainWindow.Diagnostics.cs` (clipboard), `Views/SettingsPanel.xaml(.cs)` |
 | Change notification buttons / launch links    | `Services/BackgroundCheck.cs` (toast), `Services/LaunchIntent.cs` (links), `App.xaml.cs`, `MainWindow.xaml.cs` |
 | Change the Changes filter                     | `Services/CommitFilter.cs` (rules), `Views/ChangesPanel.xaml(.cs)` |
+| Change keyboard shortcuts                     | `MainWindow.Shortcuts.cs`                   |
+| Change keep-on-top, check interval, reset settings, stop skipping | `MainWindow.Comfort.cs`, `Views/SettingsPanel.xaml(.cs)`, `Views/BuildsPanel.xaml(.cs)` |
 | Change how many installers are cached         | `AppConfig.CacheKeepChoices`, `Views/SettingsPanel.xaml(.cs)`, `MainWindow.Install.cs` (`PruneCache`) |
 
 ## 3. Structure rules (keep it cheap for the next agent)

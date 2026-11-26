@@ -28,6 +28,10 @@ public sealed class AppState
     public bool WaitForVlc { get; set; }
     /// <summary>How many verified installers to keep per CPU type for offline rollback / undo. Clamped on use (see <see cref="AppConfig.CacheKeepChoices"/>).</summary>
     public int CacheKeep { get; set; } = AppConfig.CacheKeep;
+    /// <summary>Hours between automatic checks while the window stays open. Clamped on use (see <see cref="AppConfig.AutoCheckChoices"/>).</summary>
+    public int AutoCheckHours { get; set; } = AppConfig.AutoCheckHours;
+    /// <summary>true = the window stays above other windows.</summary>
+    public bool AlwaysOnTop { get; set; }
     /// <summary>Update this updater itself from GitHub Releases without asking.</summary>
     public bool AutoUpdateSelf { get; set; } = true;
     /// <summary>true = this updater also considers GitHub pre-releases and takes whichever version is newest.</summary>

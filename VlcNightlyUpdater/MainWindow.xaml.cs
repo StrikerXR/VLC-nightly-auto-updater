@@ -18,6 +18,8 @@ namespace VlcNightlyUpdater;
 ///   MainWindow.Undo.cs        "Undo last update"
 ///   MainWindow.FirstRun.cs    the first-run "Is this the latest nightly?" question
 ///   MainWindow.Diagnostics.cs "Copy diagnostics"
+///   MainWindow.Shortcuts.cs   keyboard shortcuts
+///   MainWindow.Comfort.cs     keep on top, check interval, reset settings, un-skip
 /// </summary>
 public sealed partial class MainWindow : Window
 {
@@ -55,6 +57,10 @@ public sealed partial class MainWindow : Window
         Tiles.SetInstalled(_state.InstalledBuild, ArchInfo.ParseKey(_state.InstalledArch));
         Actions.SetLastChecked(_state.LastChecked);
         RefreshUndo();
+        Builds.SetSkipped(_state.SkippedBuild);
+        _state.AutoCheckHours = Math.Clamp(_state.AutoCheckHours, AppConfig.AutoCheckChoices.Min(), AppConfig.AutoCheckChoices.Max());
+        ApplyAlwaysOnTop();
+        SetupShortcuts();
 
         // wiring: views raise events, this file decides what they mean
         Status.CancelClicked += (_, _) => _opCts?.Cancel();
@@ -78,6 +84,10 @@ public sealed partial class MainWindow : Window
             Builds.Refresh();
             RefreshUndo();
         };
+        Settings.AlwaysOnTopChanged += (_, _) => ApplyAlwaysOnTop();
+        Settings.CheckIntervalChanged += (_, _) => ApplyCheckInterval();
+        Settings.ResetRequested += async (_, _) => await ResetSettingsAsync();
+        Builds.UnskipRequested += async (_, _) => await ClearSkipAsync();
         Actions.SkipClicked += (_, _) => SkipPendingBuild();
         Actions.UndoClicked += async (_, _) =>
         {
@@ -99,7 +109,7 @@ public sealed partial class MainWindow : Window
         });
 
         // Periodic check while the app stays open
-        _autoCheckTimer.Interval = AppConfig.AutoCheckInterval;
+        _autoCheckTimer.Interval = TimeSpan.FromHours(_state.AutoCheckHours);
         _autoCheckTimer.Tick += async (_, _) =>
         {
             if (!_busy && _state.AutoUpdate)
@@ -146,6 +156,7 @@ public sealed partial class MainWindow : Window
         _state.SkippedBuild = build.Folder;
         StateStore.Save(_state);
         _pending = null;
+        Builds.SetSkipped(build.Folder);
         Status.Set(Strings.SkippedTitle, Strings.SkippedDetail(build.Folder), Phase.Good);
         Actions.SetPrimary(updateWaiting: false);
     }
@@ -240,6 +251,7 @@ public sealed partial class MainWindow : Window
                 SetBusy(false);
                 Actions.SetPrimary(updateWaiting: _pending is not null, canSkip: _pending is not null && !_pendingIsSwitch);
                 RefreshUndo();
+                Builds.SetSkipped(_state.SkippedBuild);
                 _ = RefreshChangesAsync();
             }
         }

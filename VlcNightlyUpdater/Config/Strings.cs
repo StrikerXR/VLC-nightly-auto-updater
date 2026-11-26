@@ -165,6 +165,24 @@ public static class Strings
     public const string DiagnosticsCopied = "Copied";
     public const string DiagnosticsFailed = "Couldn't copy";
 
+    // ---- 5.2.1 comforts ----
+    public const string Copied = "Copied";
+    public const string ClickToCopy = "Click to copy";
+    public static string AutoCheckChoice(int hours) => hours == 1 ? "Every hour" : hours == 24 ? "Once a day" : $"Every {hours} hours";
+    public const string ResetTitle = "Reset settings?";
+    public const string ResetBody = "Every option goes back to its default. Your installed VLC, the build history and the saved installers are not touched, and background notifications stay as they are.";
+    public const string ResetConfirm = "Reset";
+    public const string ResetDone = "Settings reset";
+    public const string ResetDoneDetail = "Everything is back to its default.";
+    public const string CopyList = "Copy list";
+    public const string CopyId = "Copy commit ID";
+    public const string CopyTitle = "Copy title";
+    public const string CopyLink = "Copy link";
+    public const string NoSkipped = "No build is skipped.";
+    public static string SkippedRow(string folder) => $"Skipped: {folder}";
+    public const string SkipCleared = "Skip cleared";
+    public static string SkipClearedDetail(string folder) => $"{folder} can be offered again.";
+
     // ---- installed vs portable ----
     public const string PortableNote = "Portable copy: settings and cached installers live in the Data folder next to the app. It never installs itself over anything.";
     public const string InstalledNote = "Installed copy.";

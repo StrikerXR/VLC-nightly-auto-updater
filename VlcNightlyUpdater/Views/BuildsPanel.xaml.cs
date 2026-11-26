@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using VlcNightlyUpdater.Services;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace VlcNightlyUpdater.Views;
 
@@ -15,9 +16,13 @@ public sealed partial class BuildsPanel : UserControl
     /// <summary>The user picked a build folder (e.g. 20261021-0426) and pressed Install.</summary>
     public event EventHandler<string>? InstallRequested;
 
+    /// <summary>"Stop skipping" was pressed.</summary>
+    public event EventHandler? UnskipRequested;
+
     public BuildsPanel()
     {
         InitializeComponent();
+        SkippedText.Text = Strings.NoSkipped;
         RefreshCacheText();
     }
 
@@ -35,9 +40,18 @@ public sealed partial class BuildsPanel : UserControl
         HistoryText.Text = lines.Count == 0 ? Strings.HistoryNone : string.Join("\n", lines);
     }
 
+    /// <summary>Shows which build is skipped (null = none) and the button to undo that.</summary>
+    public void SetSkipped(string? folder)
+    {
+        SkippedText.Text = folder is null ? Strings.NoSkipped : Strings.SkippedRow(folder);
+        UnskipButton.Visibility = folder is null ? Visibility.Collapsed : Visibility.Visible;
+        UnskipButton.IsEnabled = !_busy;
+    }
+
     public void SetBusy(bool busy)
     {
         _busy = busy;
+        UnskipButton.IsEnabled = !busy;
         BuildPicker.IsEnabled = !busy;
         InstallButton.IsEnabled = !busy && BuildPicker.SelectedItem is not null;
         RefreshCacheText();
@@ -67,8 +81,48 @@ public sealed partial class BuildsPanel : UserControl
         }).ToList();
     }
 
-    private void BuildPicker_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
-        InstallButton.IsEnabled = !_busy && BuildPicker.SelectedItem is not null;
+    private void BuildPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var any = BuildPicker.SelectedItem is not null;
+        InstallButton.IsEnabled = !_busy && any;
+        OpenBuildLink.IsEnabled = any;
+        CopyBuildLink.IsEnabled = any;
+    }
+
+    private void OpenBuildLink_Click(object sender, RoutedEventArgs e)
+    {
+        if (BuildPicker.SelectedItem is not BuildItem item) return;
+        if (!AppConfig.Channels.TryGetValue(_target, out var channels) || channels.Length == 0) return;
+        _ = Windows.System.Launcher.LaunchUriAsync(new Uri($"{AppConfig.NightlyRoot}{channels[0]}/{item.Folder}/"));
+    }
+
+    private async void CopyBuildLink_Click(object sender, RoutedEventArgs e)
+    {
+        if (BuildPicker.SelectedItem is not BuildItem item) return;
+        try
+        {
+            var package = new DataPackage();
+            package.SetText(item.Folder);
+            Clipboard.SetContent(package);
+        }
+        catch { return; }
+
+        CopyBuildLink.Content = Strings.Copied;
+        await Task.Delay(1500);
+        CopyBuildLink.Content = "Copy build name";
+    }
+
+    private void UnskipButton_Click(object sender, RoutedEventArgs e) => UnskipRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OpenCacheButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Directory.CreateDirectory(InstallerCache.Root);
+            VlcProcess.OpenFolder(InstallerCache.Root);
+        }
+        catch { /* folder can't be opened: nothing useful to say */ }
+    }
 
     private void InstallButton_Click(object sender, RoutedEventArgs e)
     {

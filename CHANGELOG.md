@@ -1,26 +1,20 @@
-# What's new in 5.1.0
+# What's new in 5.2.1
 
-Safer updates and a few comforts: go back with one click, let VLC finish before it updates, and a first-run question so the updater never has to guess.
+A round of small comforts: keyboard shortcuts, easy copying, and a few new options.
 
 ## New
-- **Undo last update.** Updated and something broke? Press the undo button at the bottom of the window to go back to the build you had before. It uses the installer saved on your PC when there is one (so it works offline), and downloads that build again when there isn't. The build you backed out of is skipped, so it isn't installed again right away. A newer nightly, if there is one, is still installed as usual.
-- **Install when VLC closes.** If VLC is open during an update, you can now choose **Wait until VLC closes**. The installer is downloaded and checked first, then the update starts as soon as you close VLC. Nothing is closed for you, and you can press Cancel at any time. Prefer it every time? Turn on **Wait for VLC instead of closing it** in Settings.
-- **Is this the latest nightly?** The first time the updater sees your VLC, it asks. **Yes** keeps your build as it is. **No** installs the newest nightly. **I don't know** also installs the newest nightly, to be safe. Closing the question counts as I don't know. Your VLC settings are kept either way.
-- **Buttons on the notification.** The new-nightly notification now has **Update now** and **Skip this build**. Skip works without opening the window. Update now opens the updater and starts the install, and it still asks before closing VLC.
-- **Filter the commits.** The Changes tab has a search box and a **Hide merges and translations** option. Searching looks at the title, the author and the commit ID.
-- **Copy diagnostics.** A link in Settings copies the versions, your build, your settings and the current status to the clipboard, ready to paste into a bug report. Your user folder is shortened, and no VLC settings are included.
-- **Installers to keep.** Choose in Settings how many installers stay on disk for offline rollback: 2, 3 (the default), 5 or 10.
+- **Keyboard shortcuts.** **Ctrl+R** checks again, **Ctrl+1 / 2 / 3** switch tabs, **Ctrl+,** opens Settings, **Ctrl+F** jumps to the commit filter and **Ctrl+L** launches VLC.
+- **Click to copy.** Click a build tile to copy the build name. Right-click a commit to copy its ID, title or link.
+- **Copy list.** The Changes tab can copy the commits you are looking at (ID and title), filter included.
+- **Keep this window on top.** A new option in Settings, handy while a download runs.
+- **Check interval.** Choose how often the open window looks for a new nightly: every hour, 2, 4 (the default), 8 hours, or once a day.
+- **Stop skipping.** The Builds tab shows which build you skipped and lets you bring it back with one click.
+- **Build shortcuts.** In the Builds tab, open the picked build's folder on videolan.org, copy its name, or open the folder with your saved installers.
+- **Reset settings.** A link at the bottom of Settings puts every option back to its default after asking. It never touches VLC, your history or your saved installers.
 
 ## Improved
-- **The "VLC is running" question** has a third choice, Wait until VLC closes, next to Close VLC and update and Cancel.
-- **Undo always has something to go back to.** The installer of the build you just replaced is never cleaned up, even with the smallest cache setting.
-
-## Fixed
-- **Skipped builds stay quiet.** If you had skipped a nightly, the background check could still show a notification about it. It no longer does.
+- **Tooltips** on Launch VLC and Check again now show their shortcuts.
+- **Copy diagnostics** includes the new options.
 
 ## Good to know
-- Undo only goes back to a build of the same CPU type, so it can never switch between 64-bit and ARM64 by accident. After an update from 5.0.0, undo appears once the updater has your previous build on record. For updates made before 5.1.0, it appears only if that build's installer is still saved on your PC.
-- After **Wait until VLC closes**, VLC is not reopened, because you closed it yourself. Turn on **Open VLC after updating** if you want it back every time.
-- The notification buttons need **Notify me about new nightlies** to be on, and they only work in the installed copy. If the updater is already open when you press one, it just comes to the front and nothing else happens.
-- The Hide merges and translations option is a best guess from the commit title and author. It can miss one or hide an odd one, and it never changes the number of commits behind.
-- If you already use the updater, you won't be asked the first-run question. It is only for a fresh start.
+- Background notifications are not changed by Reset settings. Turn them off in Settings if you want them off.
