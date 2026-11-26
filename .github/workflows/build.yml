@@ -56,7 +56,7 @@ jobs:
       matrix: ${{ steps.v.outputs.matrix }}
       arm64: ${{ steps.v.outputs.arm64 }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@main
 
       - id: v
         env:
@@ -142,14 +142,14 @@ jobs:
     env:
       APP_VERSION: ${{ needs.version.outputs.app }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@main
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@main
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: latest
 
       - name: Cache NuGet packages
-        uses: actions/cache@v6
+        uses: actions/cache@main
         with:
           path: ~\.nuget\packages
           key: nuget-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('**/*.csproj') }}
@@ -254,7 +254,7 @@ jobs:
           Write-Host "Uninstall left no trace"
 
       # GitHub wraps artifacts in a .zip, so each downloads as a zip containing ONLY that setup .exe
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@main
         with:
           name: VlcNightlyUpdater-Setup-${{ env.APP_VERSION }}-${{ matrix.arch }}
           path: dist/VlcNightlyUpdater-Setup-${{ env.APP_VERSION }}-${{ matrix.arch }}.exe
@@ -322,7 +322,7 @@ jobs:
       - name: Attest build provenance
         if: ${{ github.event.repository.private == false }}
         continue-on-error: true
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest@main
         with:
           subject-path: dist/VlcNightlyUpdater-Setup-*.exe
 
