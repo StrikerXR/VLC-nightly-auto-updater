@@ -47,7 +47,7 @@ jobs:
   # ---------------------------------------------------------------------------------------------
   version:
     name: Resolve version
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       app: ${{ steps.v.outputs.app }}
@@ -281,7 +281,7 @@ jobs:
     name: Publish release
     needs: [version, build]
     if: ${{ inputs.release }}
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: write        # create the GitHub Release (POST /releases)
