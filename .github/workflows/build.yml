@@ -146,7 +146,7 @@ jobs:
 
       - uses: actions/setup-dotnet@main
         with:
-          dotnet-version: latest
+          dotnet-version: 11.0.x
 
       - name: Cache NuGet packages
         uses: actions/cache@main
