@@ -1,10 +1,10 @@
 # AGENTS.md — read this first, it is the base for every change
 
-WinUI 3 app (.NET 8, Windows 10 1809+, x64 + ARM64) that keeps VLC's nightly build current.
+WinUI 3 app (.NET 11, Windows 10 1809+, x64 + ARM64) that keeps VLC's nightly build current.
 This file is deliberately short. Open only the file you need (see the map); never read the whole repo.
 
 ## 1. Hard rules (never break)
-* **Workflows:** do not modify `.github/workflows/` unless explicitly told to. (5.0.0 was told to: portable zip + release notes. 5.1.0 and 5.2.1 did not touch them.)
+* **Workflows:** do not modify `.github/workflows/` unless explicitly told to. (5.0.0 was told to: portable zip + release notes. 5.1.0 and 5.2.1 did not touch them. 5.2.2 was told to: pin the .NET 11 SDK.)
 * **Dependencies:** do not upgrade, downgrade or re-pin existing packages unless told to.
 * **New packages:** look up the exact latest version first. Never guess a version string.
 * **Never touch** `%APPDATA%\vlc` (the user's VLC settings) from code.

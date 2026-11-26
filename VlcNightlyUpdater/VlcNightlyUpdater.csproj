@@ -2,14 +2,14 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows10.0.22621.0</TargetFramework>
+    <TargetFramework>net11.0-windows10.0.22621.0</TargetFramework>
     <!-- Runs on Windows 10 1809 (build 17763) and newer, including Windows 11. We compile against the 22621 SDK. -->
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <RootNamespace>VlcNightlyUpdater</RootNamespace>
     <AssemblyName>VlcNightlyUpdater</AssemblyName>
     <Product>VLC Nightly Updater</Product>
-    <Version Condition="'$(Version)' == ''">5.2.1</Version>
+    <Version Condition="'$(Version)' == ''">5.2.2</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
